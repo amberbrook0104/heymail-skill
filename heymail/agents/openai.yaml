@@ -1,0 +1,4 @@
+interface:
+  display_name: "heymail｜JD 求职邮件"
+  short_description: "配置网易或QQ邮箱，识别JD图片准备邮件，输入发送后按预览投递"
+  default_prompt: "使用 $heymail 启动求职邮件流程；读取我上传的JD，准备主题、简历附件和约50字敬语正文，等我单独输入发送后立即发送预览版本。"

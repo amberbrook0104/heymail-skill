@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 450" role="img" aria-label="heymail：先预览，再发送">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#3568ce"/></marker></defs>
+<style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#1b2b44}.title{font-size:30px;font-weight:700}.sub{font-size:17px;fill:#63738a}.head{font-size:23px;font-weight:700}.body{font-size:18px}.small{font-size:16px;fill:#63738a}</style>
+<rect width="1120" height="450" rx="22" fill="#f5f8fc"/>
+<text x="36" y="53" class="title">heymail：先预览，再发送</text>
+<text x="36" y="88" class="sub">一次配置后，上传招聘截图即可准备邮件。示意图，不是真实对话截图。</text>
+<rect x="35" y="128" width="320" height="220" rx="16" fill="white" stroke="#cdd9ec" stroke-width="2"/>
+<text x="57" y="166" class="head">① 上传 JD</text>
+<text x="57" y="206" class="body">读取岗位与投递格式</text>
+<text x="57" y="239" class="body">匹配真实简历经历</text>
+<text x="57" y="272" class="body">保留简历原件</text>
+<rect x="400" y="128" width="320" height="220" rx="16" fill="white" stroke="#cdd9ec" stroke-width="2"/>
+<text x="422" y="166" class="head">② 核对预览</text>
+<text x="422" y="206" class="body">收件人 · 邮件主题</text>
+<text x="422" y="239" class="body">约50字的礼貌正文</text>
+<text x="422" y="272" class="body">重命名附件副本</text>
+<rect x="765" y="128" width="320" height="220" rx="16" fill="white" stroke="#cdd9ec" stroke-width="2"/>
+<text x="787" y="166" class="head">③ 单独输入“发送”</text>
+<text x="787" y="206" class="body">投递当前预览版本</text>
+<text x="787" y="239" class="body">使用本人的 SMTP 邮箱</text>
+<text x="787" y="272" class="body">不再重复询问确认</text>
+<path d="M363 235 H390" stroke="#3568ce" stroke-width="3" marker-end="url(#a)"/>
+<path d="M728 235 H755" stroke="#3568ce" stroke-width="3" marker-end="url(#a)"/>
+<text x="36" y="404" class="small">改稿需重新预览；SMTP 接受不等于已送达；客户端权限仍然适用。</text>
+</svg>
