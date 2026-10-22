@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 470" role="img" aria-label="第一次使用：按顺序完成，不提前索取全部资料">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10" fill="#3568ce"/></marker></defs>
+<style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#1b2b44}.title{font-size:30px;font-weight:700}.sub{font-size:17px;fill:#63738a}.head{font-size:23px;font-weight:700}.body{font-size:18px}.small{font-size:16px;fill:#63738a}</style>
+<rect width="1120" height="470" rx="22" fill="#f5f8fc"/>
+<text x="36" y="53" class="title">第一次使用：按顺序完成，不提前索取全部资料</text>
+<text x="36" y="88" class="sub">授权码在本机隐藏输入，不上传到聊天。配置成功后才进入 JD 投递。</text>
+<rect x="35" y="128" width="320" height="230" rx="16" fill="white" stroke="#cdd9ec" stroke-width="2"/>
+<text x="57" y="166" class="head">① 安全暂存授权码</text>
+<text x="57" y="206" class="body">选择网易163或QQ</text>
+<text x="57" y="239" class="body">密码框填写授权码</text>
+<text x="57" y="272" class="body">没弹框：双击本机入口</text>
+<text x="57" y="305" class="body">备用：终端隐藏输入</text>
+<rect x="400" y="128" width="320" height="230" rx="16" fill="white" stroke="#cdd9ec" stroke-width="2"/>
+<text x="422" y="166" class="head">② 上传简历</text>
+<text x="422" y="206" class="body">回到聊天上传 PDF/DOCX</text>
+<text x="422" y="239" class="body">保存本机持久副本</text>
+<text x="422" y="272" class="body">原件保持不变</text>
+<text x="422" y="305" class="body">自动读取姓名、学校等</text>
+<rect x="765" y="128" width="320" height="230" rx="16" fill="white" stroke="#cdd9ec" stroke-width="2"/>
+<text x="787" y="166" class="head">③ 提供发件邮箱</text>
+<text x="787" y="206" class="body">输入实际发件邮箱</text>
+<text x="787" y="239" class="body">本机内部绑定授权码</text>
+<text x="787" y="272" class="body">验证 SMTP 登录</text>
+<text x="787" y="305" class="body">成功后可上传 JD</text>
+<path d="M363 243 H390" stroke="#3568ce" stroke-width="3" marker-end="url(#a)"/>
+<path d="M728 243 H755" stroke="#3568ce" stroke-width="3" marker-end="url(#a)"/>
+<text x="36" y="422" class="small">已配置用户跳过首次流程；邮件始终先预览，单独回复“发送”才提交。</text>
+</svg>

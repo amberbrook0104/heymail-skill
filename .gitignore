@@ -5,6 +5,7 @@ __pycache__/
 .env
 .env.*
 config.json
+onboarding.json
 *.local.json
 *.private.json
 pending.json

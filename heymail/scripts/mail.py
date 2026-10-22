@@ -106,7 +106,7 @@ def sender(config):
     return {k: config[k] for k in ("provider", "email", "display_name", "credential_target")}
 
 
-def vault(config, exists_only=False):
+def credential_api():
     if sys.platform != "win32":
         raise MailError("windows_credential_manager_required")
 
@@ -122,7 +122,16 @@ def vault(config, exists_only=False):
     api.CredReadW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
                              ctypes.POINTER(ctypes.POINTER(Credential))]
     api.CredReadW.restype = wintypes.BOOL
+    api.CredWriteW.argtypes = [ctypes.POINTER(Credential), wintypes.DWORD]
+    api.CredWriteW.restype = wintypes.BOOL
+    api.CredDeleteW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD]
+    api.CredDeleteW.restype = wintypes.BOOL
     api.CredFree.argtypes = [ctypes.c_void_p]
+    return api, Credential
+
+
+def vault(config, exists_only=False):
+    api, Credential = credential_api()
     item = ctypes.POINTER(Credential)()
     if not api.CredReadW(config["credential_target"], 1, 0, ctypes.byref(item)):
         if exists_only:
@@ -137,6 +146,93 @@ def vault(config, exists_only=False):
                                 item.contents.CredentialBlobSize).decode("utf-16-le")
     finally:
         api.CredFree(item)
+
+
+def vault_save(config, secret):
+    api, Credential = credential_api()
+    data = secret.encode("utf-16-le")
+    buffer = ctypes.create_string_buffer(data)
+    item = Credential()
+    item.Type = 1
+    item.TargetName = config["credential_target"]
+    item.UserName = config["email"]
+    item.Comment = "HeyMail SMTP authorization code"
+    item.CredentialBlobSize = len(data)
+    item.CredentialBlob = ctypes.cast(buffer, ctypes.c_void_p)
+    item.Persist = 2
+    try:
+        if not api.CredWriteW(ctypes.byref(item), 0):
+            raise MailError("credential_save_failed")
+    finally:
+        ctypes.memset(ctypes.addressof(buffer), 0, ctypes.sizeof(buffer))
+        data = None
+
+
+def vault_delete_pending(target):
+    if not re.fullmatch(r"HeyMail/pending/[0-9a-f]{32}", target):
+        raise MailError("invalid_pending_credential_target")
+    api, _ = credential_api()
+    if not api.CredDeleteW(target, 1, 0):
+        raise MailError("pending_credential_cleanup_failed")
+
+
+def onboarding_path(config_path):
+    return config_path.resolve().parent / "onboarding.json"
+
+
+def onboarding_state(config_path):
+    path = onboarding_path(config_path)
+    result = {"ok": True, "config": str(config_path.resolve()), "onboarding_file": str(path)}
+    if config_path.exists():
+        config = load_config(config_path)
+        result.update(phase="configured", credential_saved=vault(config, exists_only=True))
+    elif path.exists():
+        state = read_json(path)
+        # Status is non-secret. Reject fields that might accidentally contain a code.
+        allowed = {"phase", "provider", "credential_target", "mode", "pid", "time", "resume_path", "resume_sha256", "gui_ready", "error_type"}
+        if set(state) - allowed:
+            raise MailError("invalid_onboarding_status_fields")
+        result.update(state)
+    else:
+        result["phase"] = "authorization_required"
+    return result
+
+
+def validate_pending(path, provider=None):
+    state = read_json(path)
+    if state.get("phase") not in ("credential_saved", "resume_saved"):
+        raise MailError("save_authorization_code_first")
+    if state.get("provider") not in PROVIDERS or (provider and state["provider"] != provider):
+        raise MailError("pending_provider_mismatch")
+    if not re.fullmatch(r"HeyMail/pending/[0-9a-f]{32}", state.get("credential_target", "")):
+        raise MailError("invalid_pending_credential_target")
+    return state
+
+
+def onboarding_resume(config_path, resume):
+    path = onboarding_path(config_path)
+    state = validate_pending(path)
+    source = resume.resolve(strict=True)
+    if source.suffix.lower() not in (".pdf", ".docx"):
+        raise MailError("resume_must_be_pdf_or_docx")
+    if not source.is_file() or not 0 < source.stat().st_size <= MAX_ATTACHMENT:
+        raise MailError("resume_empty_or_larger_than_10mib")
+    data = source.read_bytes()
+    if source.suffix.lower() == ".pdf" and not data.startswith(b"%PDF-"):
+        raise MailError("invalid_pdf_header")
+    if source.suffix.lower() == ".docx" and not data.startswith(b"PK"):
+        raise MailError("invalid_docx_header")
+    # Uploaded chat attachments may live in temporary caches. Keep a private,
+    # byte-identical local copy for later applications, outside the repository.
+    destination = config_path.resolve().parent / "resumes" / uuid.uuid4().hex / safe_filename(source.name)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(data)
+    if sha(destination.read_bytes()) != sha(data):
+        raise MailError("resume_copy_integrity_failed")
+    state.update(phase="resume_saved", resume_path=str(destination), resume_sha256=sha(data), time=now())
+    atomic_json(path, state)
+    return {"ok": True, "phase": "email_required", "resume_path": str(destination),
+            "onboarding_file": str(path), "next": "ask_sender_email_then_setup"}
 
 
 def safe_filename(value):
@@ -181,8 +277,31 @@ def setup(args):
         if not args.replace:
             raise MailError("config_exists_use_replace_for_intended_update")
         shutil.copy2(path, path.with_name(path.name + "." + uuid.uuid4().hex + ".bak"))
+    pending_path = getattr(args, "pending_credential", None)
+    pending = None
+    if pending_path:
+        pending = validate_pending(pending_path, config["provider"])
+        if pending.get("phase") != "resume_saved":
+            raise MailError("upload_resume_before_sender_email_setup")
+        if Path(pending.get("resume_path", "")).resolve() != args.resume.resolve():
+            raise MailError("resume_does_not_match_onboarding")
+        # Bind internally: no secret appears in CLI args, JSON, or stdout.
+        secret = vault({"credential_target": pending["credential_target"], "email": "pending"})
+        try:
+            vault_save(config, secret)
+        finally:
+            secret = None
     atomic_json(path, config)
+    cleanup_required = False
+    if pending:
+        try:
+            vault_delete_pending(pending["credential_target"])
+        except MailError:
+            cleanup_required = True
+        pending.update(phase="configured", time=now())
+        atomic_json(pending_path, pending)
     return {"ok": True, "config": str(path), "credential_target": config["credential_target"],
+            "pending_cleanup_required": cleanup_required,
             "note": "profile_saved_no_secret_written_no_mail_sent"}
 
 
@@ -349,6 +468,10 @@ def main():
         init.add_argument("--" + field, default="")
     init.add_argument("--credential-target", default="", help="Existing local credential target for migration")
     init.add_argument("--replace", action="store_true")
+    init.add_argument("--pending-credential", type=Path, help="Non-secret local onboarding status; binds saved code internally")
+    commands.add_parser("onboarding-status", help="Check first-run progress without needing a sender email")
+    resume_step = commands.add_parser("onboarding-resume", help="Save the uploaded resume after authorization-code entry")
+    resume_step.add_argument("--resume", type=Path, required=True)
     status = commands.add_parser("status", help="Show non-secret profile and optional pending draft")
     status.add_argument("--state-dir", type=Path)
     commands.add_parser("check", help="Authenticate SMTP; do not send a message")
@@ -362,6 +485,12 @@ def main():
     args = parser.parse_args()
     if args.command == "setup":
         emit(setup(args))
+        return
+    if args.command == "onboarding-status":
+        emit(onboarding_state(args.config))
+        return
+    if args.command == "onboarding-resume":
+        emit(onboarding_resume(args.config, args.resume))
         return
     config = load_config(args.config)
     if args.command == "status":

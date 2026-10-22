@@ -5,16 +5,20 @@ description: "用网易163或QQ邮箱投递实习申请。响应 /heymail、$hey
 
 # heymail
 
-目标交互：启动技能 → 首次配置（如需要）→ 上传 JD → 预览邮件和重命名简历 → 用户在下一条消息单独输入“发送” → 立即发送已预览版本，不再追加一次确认。
+目标交互：首次启动先安全保存授权码 → 用户上传简历 → 用户提供发件邮箱 → 验证配置 → 以后上传 JD、预览、输入“发送”即可投递。
 
 ## 启动和配置
 
 - 识别用户输入 `/heymail` 或 `$heymail`，进入本聊天的求职邮件流程。Codex 官方支持 `$heymail` 或 `/skills` 选技能；不要声称安装技能就能给所有客户端注册原生斜杠命令。Claude Code 中技能名对应 `/heymail`。详见[调用与安装](references/usage.md)。
-- 本版面向 Windows 10/11 桌面，Python 3.10+，发件服务支持 `@163.com` 和 `@qq.com`。使用 `scripts/mail.py`，不需要模型 API 密钥、Agent Mail 或额外 npm 包。
-- 先执行 `python -X utf8 "<本技能目录>/scripts/mail.py" status`，只显示本机非秘密配置及凭据是否存在。若工具运行在隔离沙箱，先通过宿主授权机制取得实际 Windows 用户上下文再执行 status；沙箱的 LOCALAPPDATA/凭据视图可能不同，不能据其 setup_required 或 credential_saved:false 就覆盖配置或索取新码。确认本机确实未配置时按[邮箱配置](references/setup.md)指导用户完成一次设置；登录、短信、扫码由用户亲自操作。
-- 初次收集发件邮箱、姓名、简历原件，以及简历不能确认的出勤时间。能从简历可靠读取的学校、学历、年级等无需重复询问。普通配置存于 `%LOCALAPPDATA%/HeyMail/config.json`；授权码仅存于 Windows 凭据管理器。
-- 不让用户在聊天中发送授权码，不将授权码写入代码、配置、环境变量、命令参数、截图、仓库。用 `save-credential.ps1` 的本机密码框输入；发信脚本在本机进程内部读取，日志仅输出状态。不要导出凭据来给模型看。
-- 首次只验证 SMTP 登录；不自动发测试邮件。用户明确要求测试时才发。配置成功后，后续通常只需 JD 图片。
+- 本版面向 Windows 10/11 本机桌面，Python 3.10+，发件服务支持 `@163.com` 和 `@qq.com`。发信用 `scripts/mail.py`，默认输入框用 Python Tkinter；无需安装 pwsh、Agent Mail、模型 API 密钥或额外 npm 包。
+- 若系统没有 python/py 命令，先定位客户端提供的 Python 运行时；有依赖定位工具时优先使用，不先让用户自行排查。自带运行时没有 Tkinter 时直接使用同一 Python 的本机终端隐藏输入，而不是假定所有电脑都能弹图形框。
+- 先在实际 Windows 用户上下文执行 `python -X utf8 "<本技能目录>/scripts/mail.py" onboarding-status`。沙箱可能隔离 LOCALAPPDATA 和凭据，不能据沙箱的缺失结果覆盖配置或索取新码。若返回 configured 且凭据、简历可用，跳过首次配置；不要因本次修复让已配置用户重新提交资料。
+- 确认首次未配置后，严格分步推进，不先一口气索取姓名、邮箱、简历或 JD。第一步给出网易/QQ 的[官方授权码指引](references/setup.md)，然后**主动启动** `credential_input.py` 本机密码框；邮箱类型可在框内选择，授权码先用随机 pending 目标保存在 Windows 凭据管理器，此时不需要邮箱地址。
+- 启动前运行 `credential_input.py --probe` 检查本机 Python/Tkinter。GUI 用实际桌面用户的进程启动；检查 onboarding-status 的 gui_ready 标记，不能只给出命令或把“进程已启动”当成用户已看到窗口。若用户看不到、进程退出或图形库不可用，立即提供可双击的 `scripts/start-setup.cmd`；仍无窗口则用 `scripts/start-setup-console.cmd` 在本机终端隐藏输入。具体启动和校验见[首次配置](references/setup.md)。不要在 Agent 的管道终端里要求用户输入授权码。
+- 第一阶段状态达到 credential_saved 后，只提示“请上传 PDF/DOCX 简历”。用户上传后运行 `onboarding-resume --resume ...`，保存字节一致的本机持久副本并读取真实资料。第二阶段完成后再问发件邮箱地址；若用户已明确提供则沿用，不重复询问。确认邮箱供应商与刚才所选一致，不能用招聘邮箱代替发件邮箱。
+- 用 setup 的 `--pending-credential <onboarding.json路径>` 在本机内部将暂存授权码绑定到邮箱，写普通配置后清理 pending 凭据。姓名、学校等从简历核实，不让用户重复填写。只在确实缺少招聘所需出勤安排时再问。配置与资料存在 `%LOCALAPPDATA%/HeyMail/`，授权码不在 JSON 里。
+- 不让用户在聊天中发送或上传授权码截图/文件，不将授权码写入代码、配置、环境变量、命令参数或仓库。输入框与本机 getpass 都不明文回显；绑定和发信时只在本机进程内部读取，不能打印给模型看。
+- 最后执行 check 验证 SMTP 登录；不自动发送测试邮件。验证成功才告知可以上传 JD；如果用户已上传 JD，保留并在配置完成后处理，无需再上传一次。后续通常只需 JD 图片。
 
 ## JD → 邮件预览
 

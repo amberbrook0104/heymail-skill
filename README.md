@@ -8,7 +8,7 @@
 
 ## 适用环境与调用
 
-- **Windows 10/11 桌面**，Python **3.10+**，Windows PowerShell 5.1 或 PowerShell 7。发送脚本只使用 Python 标准库。
+- **Windows 10/11 本机桌面**，Python **3.10+**。默认输入框使用 Python 自带的 Tkinter；Tkinter 不可用时改用本机终端隐藏输入。发信和首次输入均不依赖 pwsh 或 PowerShell 脚本执行策略。
 - 邮箱：`@163.com`、`@qq.com`；简历：PDF 或 DOCX。QQ企业邮箱、网易企业邮箱、126邮箱暂未接入。
 - **Claude Code**：安装后原生调用 `/heymail`。
 - **Codex**：官方入口为 `$heymail`，或 `/skills` 后选择 heymail。`/heymail` 也写入了技能触发说明，但客户端必须能将该文本发给模型；安装一个技能不能给所有 Codex 版本注册新的原生斜杠命令。
@@ -35,11 +35,15 @@ pwsh -NoProfile -File .\install.ps1 -Agent claude
 ## 第一次使用
 
 1. 调用 `/heymail`（Codex 用 `$heymail`）。
-2. 按提示选择 163 或 QQ，提供姓名、发件邮箱和简历路径；学校、年级及出勤安排可从简历核实，缺少的再补充。
-3. 按[授权码图文指引](heymail/references/setup.md)注册或登录邮箱、开启 SMTP、生成客户端授权码。
-4. 在**本机密码输入窗口**填写授权码并保存，不发到聊天。配置工具只验证登录，不自动发测试邮件。
-5. 配置完成后上传 JD 截图或文字。Agent 直接生成收件人、主题、约50字正文和重命名简历副本。
+2. **先保存授权码**：按[图文指引](heymail/references/setup.md)开通 SMTP，在主动打开的本机密码框里选择网易或 QQ、填写授权码；此时不需要邮箱地址或简历，不把授权码发到聊天。
+3. **再上传简历**：保存成功后，Agent 才提示上传 PDF/DOCX，读取资料并保存一份本机持久副本；姓名、学校等无需重复手填。
+4. **最后提供发件邮箱**：Agent 将暂存授权码在本机内部绑定到邮箱，验证 SMTP 登录。验证过程不发测试邮件。
+5. 配置成功后，才进入上传 JD、预览和发送流程。已经配置好的用户直接跳到此步骤，不必重交授权码或简历。
 6. 核对预览。下一条消息单独输入 **发送**，Agent 立即提交当前版本，不再次问确认。
+
+**没有看到安全输入框？** 在解压后的仓库双击 `start-setup.cmd`。还没出现则双击 `start-setup-console.cmd`，在本机终端里隐藏输入。安装后的技能也保留这两个文件，位于 `heymail/scripts/`。它们不需要先提供邮箱地址；不会要求你把授权码贴到聊天。不要在 ZIP 预览里直接运行，先完整解压。
+
+![首次使用的三个步骤](heymail/assets/first-run.svg)
 
 ![邮箱开通流程示意](heymail/assets/provider-setup.svg)
 
@@ -65,8 +69,8 @@ pwsh -NoProfile -File .\install.ps1 -Agent claude
 
 ![本机授权码保存示意](heymail/assets/credential-storage.svg)
 
-- 普通配置保存在 `%LOCALAPPDATA%/HeyMail/config.json`；它包含个人资料和简历路径，**也不应提交到公开仓库**。
-- 授权码保存在 Windows 凭据管理器的普通凭据中，由当前 Windows 用户保护；不存 `.env`、明文 JSON、命令行参数或 GitHub Secrets。
+- 普通配置保存在 `%LOCALAPPDATA%/HeyMail/config.json`，上传简历的持久副本存在同目录下的 resumes 文件夹；这些个人资料**也不应提交到公开仓库**。
+- 授权码先保存在 Windows 凭据管理器随机的 `HeyMail/pending/...` 普通凭据中，补齐简历和邮箱后内部绑定并清理暂存凭据；`onboarding.json` 只记录步骤、目标名称和普通资料，不存授权码。不存 `.env`、明文 JSON、命令行参数或 GitHub Secrets。
 - 发信时仅本机进程内部读取授权码，SMTP 使用校验证书的 SSL/TLS。Python 进程内仍会短暂持有凭据，不能保证内存中绝无残留；同一 Windows 用户下的恶意软件或管理员也可能访问凭据。
 - 邮件内容、简历和回执都留在本机；技能本身不会把它们上传到 GitHub。不要把真实材料复制进仓库。`.gitignore` 提供防误提交规则，但不能替代提交前检查。
 - 默认无需 IMAP 收件权限。SMTP 接受只代表服务器接收任务，不代表对方收到或已读；请看实际收件或退信。
