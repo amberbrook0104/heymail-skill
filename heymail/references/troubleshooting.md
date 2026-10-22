@@ -4,7 +4,7 @@
 
 | 情况 | 处理 |
 | --- | --- |
-| setup_required | 第一次配置发件账号和简历路径。 |
+| setup_required | 先确认是否在隔离沙箱中运行。沙箱的应用数据目录可能不同，先用宿主授权机制在实际 Windows 用户上下文重查；确认本机确实无配置后再首次设置。 |
 | provider_email_domain_mismatch | 163 只接受 @163.com，QQ 只接受 @qq.com；企业邮/其他域名本版不支持。 |
 | credential_not_found_or_not_accessible / credential_saved:false | 用同一 Windows 用户打开本机密码框保存；工具沙箱也可能限制凭据访问，申请所需本机权限。 |
 | SMTPAuthenticationError / 535 | 确认已开通 SMTP、使用授权码而非登录密码；检查是否更改过密码使旧码过期，在本机重新填写。不要把授权码贴进聊天排查。 |

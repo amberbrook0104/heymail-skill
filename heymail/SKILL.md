@@ -11,7 +11,7 @@ description: "用网易163或QQ邮箱投递实习申请。响应 /heymail、$hey
 
 - 识别用户输入 `/heymail` 或 `$heymail`，进入本聊天的求职邮件流程。Codex 官方支持 `$heymail` 或 `/skills` 选技能；不要声称安装技能就能给所有客户端注册原生斜杠命令。Claude Code 中技能名对应 `/heymail`。详见[调用与安装](references/usage.md)。
 - 本版面向 Windows 10/11 桌面，Python 3.10+，发件服务支持 `@163.com` 和 `@qq.com`。使用 `scripts/mail.py`，不需要模型 API 密钥、Agent Mail 或额外 npm 包。
-- 先执行 `python -X utf8 "<本技能目录>/scripts/mail.py" status`，只显示本机非秘密配置及凭据是否存在。未配置时按[邮箱配置](references/setup.md)指导用户完成一次设置；登录、短信、扫码由用户亲自操作。
+- 先执行 `python -X utf8 "<本技能目录>/scripts/mail.py" status`，只显示本机非秘密配置及凭据是否存在。若工具运行在隔离沙箱，先通过宿主授权机制取得实际 Windows 用户上下文再执行 status；沙箱的 LOCALAPPDATA/凭据视图可能不同，不能据其 setup_required 或 credential_saved:false 就覆盖配置或索取新码。确认本机确实未配置时按[邮箱配置](references/setup.md)指导用户完成一次设置；登录、短信、扫码由用户亲自操作。
 - 初次收集发件邮箱、姓名、简历原件，以及简历不能确认的出勤时间。能从简历可靠读取的学校、学历、年级等无需重复询问。普通配置存于 `%LOCALAPPDATA%/HeyMail/config.json`；授权码仅存于 Windows 凭据管理器。
 - 不让用户在聊天中发送授权码，不将授权码写入代码、配置、环境变量、命令参数、截图、仓库。用 `save-credential.ps1` 的本机密码框输入；发信脚本在本机进程内部读取，日志仅输出状态。不要导出凭据来给模型看。
 - 首次只验证 SMTP 登录；不自动发测试邮件。用户明确要求测试时才发。配置成功后，后续通常只需 JD 图片。
