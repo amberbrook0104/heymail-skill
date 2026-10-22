@@ -185,14 +185,20 @@ def onboarding_state(config_path):
     result = {"ok": True, "config": str(config_path.resolve()), "onboarding_file": str(path)}
     if config_path.exists():
         config = load_config(config_path)
-        result.update(phase="configured", credential_saved=vault(config, exists_only=True))
-    elif path.exists():
+        saved = vault(config, exists_only=True)
+        result.update(existing_config=True, credential_saved=saved)
+        if saved:
+            result["phase"] = "configured"
+            return result
+    if path.exists():
         state = read_json(path)
         # Status is non-secret. Reject fields that might accidentally contain a code.
         allowed = {"phase", "provider", "credential_target", "mode", "pid", "time", "resume_path", "resume_sha256", "gui_ready", "error_type"}
         if set(state) - allowed:
             raise MailError("invalid_onboarding_status_fields")
         result.update(state)
+        if result.get("phase") == "configured":
+            result["phase"] = "authorization_required"
     else:
         result["phase"] = "authorization_required"
     return result

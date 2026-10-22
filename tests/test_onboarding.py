@@ -171,6 +171,35 @@ class OnboardingTests(unittest.TestCase):
         with self.assertRaises(engine.MailError):
             engine.onboarding_state(self.config)
 
+    def partial_config(self):
+        engine.atomic_json(self.config, {"version": 1, "provider": "163", "email": "applicant@163.com",
+            "display_name": "示例同学", "resume_path": str(self.resume),
+            "credential_target": "HeyMail/163/applicant@163.com", "applicant": {}})
+
+    def test_legacy_profile_without_credential_resumes_authorization(self):
+        self.partial_config()
+        before = self.config.read_bytes()
+        with patch.object(engine, "vault", return_value=False):
+            result = engine.onboarding_state(self.config)
+        self.assertTrue(result["existing_config"])
+        self.assertEqual(result["phase"], "authorization_required")
+        self.assertEqual(self.config.read_bytes(), before)
+
+    def test_legacy_profile_does_not_hide_new_saved_authorization(self):
+        self.partial_config()
+        self.save_code()
+        with patch.object(engine, "vault", return_value=False):
+            result = engine.onboarding_state(self.config)
+        self.assertTrue(result["existing_config"])
+        self.assertEqual(result["phase"], "credential_saved")
+
+    def test_working_profile_skips_first_run(self):
+        self.partial_config()
+        with patch.object(engine, "vault", return_value=True):
+            result = engine.onboarding_state(self.config)
+        self.assertEqual(result["phase"], "configured")
+        self.assertTrue(result["credential_saved"])
+
 
 if __name__ == "__main__":
     unittest.main()
