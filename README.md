@@ -1,12 +1,17 @@
 # heymail
 
-当前版本：**[v1.1](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.1)**
+当前版本：**[v1.2](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.2)**
 
 **上传 JD，准备好求职邮件；核对后输入「发送」，投递已预览的版本。**
 
 支持网易 163 和 QQ 邮箱，通过自己的 SMTP 账号发送。正文约50字，结合真实简历，用“您、烦请、敬请、期待”等自然敬语；按招聘要求命名主题及简历副本。脚本不附加 AI 签名或 Agent Mail 页脚。
 
 ![使用流程](heymail/assets/workflow.svg)
+
+## v1.2 更新
+
+- 邮件正文中的每个网址单独占一行，前后留空行，不在网址同一行续写正文，减少邮件客户端将后续文字一并识别为链接的情况。
+- 邮件使用纯文本，不添加 Markdown 链接格式。
 
 ## v1.1 更新
 
@@ -94,4 +99,5 @@ python -X utf8 -m unittest discover -s tests -v
 自动测试使用虚构账号、临时简历及模拟 SMTP，不读取凭据、不发送邮件。覆盖两种供应商、中文附件完整性、确认词、摘要/附件篡改、并发锁、重复投递及发送不确定状态。真实邮箱联调需要用户在本机完成授权；支持 QQ 不代表已替每个用户验证其 QQ 账号。
 
 本项目以 MIT 许可提供；邮箱服务商仍可能调整页面、风控和发送限制。
+
 
