@@ -324,30 +324,19 @@ def read_pending(directory):
     return pointer, draft_dir, manifest, digest
 
 
-def read_receipt_enabled(data):
-    enabled = data.get("request_read_receipt", False)
-    if not isinstance(enabled, bool):
-        raise MailError("request_read_receipt_must_be_boolean")
-    return enabled
-
-
 def preview(manifest, digest, draft_dir):
-    enabled = read_receipt_enabled(manifest)
     return {"ok": True, "status": "prepared_waiting_for_user_send", "digest": digest,
             "from": manifest["sender"]["email"], "to": manifest["to"],
             "subject": manifest["subject"], "body": manifest["body"],
             "attachment": str(draft_dir / manifest["attachment"]["filename"]),
             "attachment_sha256": manifest["attachment"]["sha256"],
-            "request_read_receipt": enabled,
-            "read_receipt_to": manifest["sender"]["email"] if enabled else None,
             "next_user_message": "发送"}
 
 
 def prepare(config, args):
     job = read_json(args.draft)
-    if set(job) - {"to", "subject", "body", "attachment_name", "request_read_receipt"}:
+    if set(job) - {"to", "subject", "body", "attachment_name"}:
         raise MailError("unexpected_draft_fields")
-    enabled = read_receipt_enabled(job)
     email_address(job.get("to"))
     if not isinstance(job.get("subject"), str) or not job["subject"].strip() or any(
             c in job["subject"] for c in "\r\n\x00"):
@@ -377,7 +366,6 @@ def prepare(config, args):
             raise MailError("attachment_copy_integrity_failed")
         manifest = {"version": 1, "sender": sender(config), "to": job["to"],
                     "subject": job["subject"], "body": job["body"],
-                    "request_read_receipt": enabled,
                     "attachment": {"filename": filename, "sha256": sha(data), "size": len(data)}}
         digest = sha(canonical(manifest))
         atomic_json(draft_dir / "manifest.json", manifest)
@@ -401,8 +389,6 @@ def build_message(manifest, draft_dir):
     msg["Subject"] = manifest["subject"]
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain=manifest["sender"]["email"].split("@")[1])
-    if read_receipt_enabled(manifest):
-        msg["Disposition-Notification-To"] = email_address(manifest["sender"]["email"])
     msg.set_content(manifest["body"], charset="utf-8")
     subtype = "pdf" if filename.lower().endswith(".pdf") else "vnd.openxmlformats-officedocument.wordprocessingml.document"
     msg.add_attachment(data, maintype="application", subtype=subtype, filename=filename)
@@ -451,8 +437,7 @@ def send(config, args):
             secret = None
         receipt = {"status": "submitting", "time": now(), "digest": digest,
                    "from": config["email"], "to": manifest["to"],
-                   "subject": manifest["subject"], "message_id": str(msg["Message-ID"]),
-                   "request_read_receipt": read_receipt_enabled(manifest)}
+                   "subject": manifest["subject"], "message_id": str(msg["Message-ID"])}
         try:
             atomic_json(receipt_path, receipt)
             try:
@@ -468,9 +453,7 @@ def send(config, args):
                 receipt.update(status="uncertain", time=now())
                 atomic_json(receipt_path, receipt)
                 raise
-            receipt.update(status="accepted", time=now(),
-                           read_receipt_status="requested" if receipt["request_read_receipt"]
-                           else "not_requested")
+            receipt.update(status="accepted", time=now())
             atomic_json(receipt_path, receipt)
             return {"ok": True, **receipt, "receipt": str(receipt_path),
                     "note": "smtp_accepted_delivery_not_verified"}
