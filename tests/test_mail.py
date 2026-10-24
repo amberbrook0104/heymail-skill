@@ -92,6 +92,103 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(attachment.get_payload(decode=True), self.resume.read_bytes())
         self.assertNotIn("Agent Mail", parsed.get_body().get_content())
 
+    def test_read_receipt_is_off_by_default(self):
+        result = self.prepare()
+        self.assertFalse(result["request_read_receipt"])
+        self.assertIsNone(result["read_receipt_to"])
+        _, folder, manifest, _ = engine.read_pending(self.state)
+        self.assertFalse(manifest["request_read_receipt"])
+        with patch.object(engine, "vault", return_value="fake-offline-credential"), \
+                patch.object(engine, "connect", return_value=self.client):
+            receipt = engine.send(self.config, self.args(result))
+        msg = self.client.send_message.call_args.args[0]
+        self.assertIsNone(msg["Disposition-Notification-To"])
+        self.assertEqual(receipt["read_receipt_status"], "not_requested")
+        self.assertFalse(receipt["request_read_receipt"])
+        self.assertFalse(engine.read_json(folder / "receipt.json")["request_read_receipt"])
+
+    def test_read_receipt_is_frozen_returned_to_sender_and_recorded(self):
+        self.job["request_read_receipt"] = True
+        result = self.prepare()
+        self.assertTrue(result["request_read_receipt"])
+        self.assertEqual(result["read_receipt_to"], self.config["email"])
+        _, folder, manifest, digest = engine.read_pending(self.state)
+        self.assertTrue(manifest["request_read_receipt"])
+        self.assertEqual(digest, result["digest"])
+        with patch.object(engine, "vault", return_value="fake-offline-credential"), \
+                patch.object(engine, "connect", return_value=self.client):
+            receipt = engine.send(self.config, self.args(result))
+        msg = self.client.send_message.call_args.args[0]
+        parsed = BytesParser(policy=policy.default).parsebytes(msg.as_bytes(policy=policy.SMTP))
+        self.assertEqual(str(parsed["Disposition-Notification-To"]), self.config["email"])
+        self.assertEqual(len(parsed.get_all("Disposition-Notification-To")), 1)
+        self.assertEqual(parsed.get_body(preferencelist=("plain",)).get_content().strip(), self.job["body"])
+        self.assertEqual(list(parsed.iter_attachments())[0].get_payload(decode=True), self.resume.read_bytes())
+        self.assertEqual(receipt["status"], "accepted")
+        self.assertTrue(receipt["request_read_receipt"])
+        self.assertEqual(receipt["read_receipt_status"], "requested")
+        self.assertEqual(engine.read_json(folder / "receipt.json")["read_receipt_status"], "requested")
+
+    def test_changing_read_receipt_requires_new_confirmation(self):
+        previous = self.prepare()
+        self.job["request_read_receipt"] = True
+        current = self.prepare()
+        self.assertNotEqual(previous["digest"], current["digest"])
+        with patch.object(engine, "vault") as vault:
+            self.error_code("confirmation_is_for_a_different_preview", engine.send,
+                            self.config, self.args(previous))
+            vault.assert_not_called()
+
+    def test_read_receipt_manifest_tampering_blocks_before_credentials(self):
+        result = self.prepare()
+        _, folder, manifest, _ = engine.read_pending(self.state)
+        manifest["request_read_receipt"] = True
+        engine.atomic_json(folder / "manifest.json", manifest)
+        with patch.object(engine, "vault") as vault:
+            self.error_code("draft_changed_prepare_and_review_again", engine.send,
+                            self.config, self.args(result))
+            vault.assert_not_called()
+
+    def test_read_receipt_must_be_a_json_boolean(self):
+        for invalid in (None, "true", "false", 0, 1, [], {}):
+            with self.subTest(value=invalid):
+                self.job["request_read_receipt"] = invalid
+                self.error_code("request_read_receipt_must_be_boolean", self.prepare)
+
+    def test_read_receipt_address_cannot_be_overridden(self):
+        self.job["request_read_receipt"] = True
+        self.job["read_receipt_to"] = "other@example.com"
+        self.error_code("unexpected_draft_fields", self.prepare)
+
+    def test_legacy_manifest_without_read_receipt_still_sends_without_request(self):
+        self.prepare()
+        pointer, folder, manifest, _ = engine.read_pending(self.state)
+        manifest.pop("request_read_receipt")
+        digest = engine.sha(engine.canonical(manifest))
+        engine.atomic_json(folder / "manifest.json", manifest)
+        engine.atomic_json(self.state / "pending.json", {"draft_id": pointer["draft_id"], "digest": digest})
+        result = engine.preview(manifest, digest, folder)
+        self.assertFalse(result["request_read_receipt"])
+        with patch.object(engine, "vault", return_value="fake-offline-credential"), \
+                patch.object(engine, "connect", return_value=self.client):
+            receipt = engine.send(self.config, self.args(result))
+        self.assertEqual(receipt["status"], "accepted")
+        self.assertIsNone(self.client.send_message.call_args.args[0]["Disposition-Notification-To"])
+        self.assertEqual(engine.read_pending(self.state)[3], digest)
+
+    def test_read_receipt_request_is_not_reported_submitted_after_rejection(self):
+        self.job["request_read_receipt"] = True
+        result = self.prepare()
+        self.client.send_message.side_effect = smtplib.SMTPDataError(550, b"synthetic rejection")
+        with patch.object(engine, "vault", return_value="fake-offline-credential"), \
+                patch.object(engine, "connect", return_value=self.client):
+            with self.assertRaises(smtplib.SMTPDataError):
+                engine.send(self.config, self.args(result))
+        _, folder, _, _ = engine.read_pending(self.state)
+        receipt = engine.read_json(folder / "receipt.json")
+        self.assertEqual(receipt["status"], "rejected")
+        self.assertNotIn("read_receipt_status", receipt)
+
     def test_only_exact_confirmation_accepted(self):
         result = self.prepare()
         for text in ("", "不要发送", "发送了吗", "确认", "发送。", " 发送 "):
@@ -239,3 +336,4 @@ class WorkflowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
