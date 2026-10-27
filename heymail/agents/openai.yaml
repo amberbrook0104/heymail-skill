@@ -1,4 +1,4 @@
 interface:
-  display_name: "heymail｜JD 求职邮件"
-  short_description: "配置网易或QQ邮箱，识别JD图片准备邮件，输入发送后按预览投递"
-  default_prompt: "使用 $heymail；首次依次完成授权码本机安全输入、上传简历和发件邮箱配置，之后读取JD准备邮件，等我单独输入发送再投递预览版本。"
+  display_name: "heymail｜实习投递与台账"
+  short_description: "准备并确认投递实习邮件，自动登记Agent并维护共享Excel台账"
+  default_prompt: "使用 $heymail；首次完成邮箱与简历配置，之后读取JD准备邮件，等我单独输入发送后投递，并登记到社科大风格共享台账。"

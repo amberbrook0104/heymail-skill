@@ -5,6 +5,7 @@ from email.parser import BytesParser
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import smtplib
 import ssl
@@ -78,8 +79,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_valid_send_preserves_unicode_mime_and_has_no_footer(self):
         result = self.prepare()
-        with patch.object(engine, "vault", return_value="fake-offline-credential"), \
-                patch.object(engine, "connect", return_value=self.client):
+        with patch.object(engine, "vault", return_value="fake-offline-credential"), patch.object(engine, "connect", return_value=self.client):
             receipt = engine.send(self.config, self.args(result))
         self.assertEqual(receipt["status"], "accepted")
         self.client.send_message.assert_called_once()
@@ -91,6 +91,87 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(attachment.get_filename(), self.job["attachment_name"])
         self.assertEqual(attachment.get_payload(decode=True), self.resume.read_bytes())
         self.assertNotIn("Agent Mail", parsed.get_body().get_content())
+
+    def test_additional_project_attachment_is_frozen_and_sent_unchanged(self):
+        project = self.root / "商业不动产REITs研究课题.pdf"
+        project_bytes = b"%PDF-1.7\\nproject fixture\\n%%EOF"
+        project.write_bytes(project_bytes)
+        self.job["additional_attachments"] = [{
+            "path": str(project), "attachment_name": "示例同学-商业不动产REITs研究课题.pdf"}]
+        result = self.prepare()
+        self.assertEqual(len(result["attachments"]), 2)
+        self.assertEqual([Path(x["path"]).name for x in result["attachments"]],
+                         [self.job["attachment_name"], "示例同学-商业不动产REITs研究课题.pdf"])
+        _, folder, manifest, digest = engine.read_pending(self.state)
+        self.assertEqual(digest, result["digest"])
+        self.assertEqual(len(manifest["additional_attachments"]), 1)
+        self.assertEqual(Path(result["attachments"][1]["path"]).read_bytes(), project_bytes)
+        with patch.object(engine, "vault", return_value="fake-offline-credential"), patch.object(engine, "connect", return_value=self.client):
+            receipt = engine.send(self.config, self.args(result))
+        parsed = BytesParser(policy=policy.default).parsebytes(
+            self.client.send_message.call_args.args[0].as_bytes(policy=policy.SMTP))
+        attachments = list(parsed.iter_attachments())
+        self.assertEqual([item.get_filename() for item in attachments],
+                         [self.job["attachment_name"], "示例同学-商业不动产REITs研究课题.pdf"])
+        self.assertEqual(attachments[0].get_payload(decode=True), self.resume.read_bytes())
+        self.assertEqual(attachments[1].get_payload(decode=True), project_bytes)
+        self.assertEqual(receipt["attachments"], [self.job["attachment_name"],
+                                                  "示例同学-商业不动产REITs研究课题.pdf"])
+
+    def test_modified_additional_attachment_blocks_before_credentials(self):
+        project = self.root / "课题.pdf"
+        project.write_bytes(b"%PDF-1.7\\noriginal\\n%%EOF")
+        self.job["additional_attachments"] = [{
+            "path": str(project), "attachment_name": "课题.pdf"}]
+        result = self.prepare()
+        _, folder, _, _ = engine.read_pending(self.state)
+        (folder / "课题.pdf").write_bytes(b"%PDF-1.7\\ntampered\\n%%EOF")
+        with patch.object(engine, "vault") as vault:
+            self.error_code("attachment_changed_prepare_and_review_again", engine.send,
+                            self.config, self.args(result))
+            vault.assert_not_called()
+
+    def test_additional_attachment_rejects_invalid_list_and_duplicate_names(self):
+        self.job["additional_attachments"] = "not-a-list"
+        self.error_code("invalid_additional_attachments", self.prepare)
+        project = self.root / "project.pdf"
+        project.write_bytes(b"%PDF-1.7\\nproject fixture\\n%%EOF")
+        self.job["additional_attachments"] = [{"path": str(project),
+                                                "attachment_name": self.job["attachment_name"]}]
+        self.error_code("duplicate_attachment_filename", self.prepare)
+
+    def test_application_metadata_and_agent_are_bound_to_preview(self):
+        self.job["application"] = {"id":"example-job","company":"示例公司","position":"投资实习生","location":"远程"}
+        self.draft.write_text(json.dumps(self.job,ensure_ascii=False),encoding="utf-8")
+        first=engine.prepare(self.config,SimpleNamespace(draft=self.draft,state_dir=self.state,agent="Codex"))
+        second=engine.prepare(self.config,SimpleNamespace(draft=self.draft,state_dir=self.state,agent="豆包"))
+        self.assertNotEqual(first["digest"],second["digest"])
+        self.assertEqual(second["agent"],"豆包")
+        self.assertEqual(second["application"]["id"],"example-job")
+        with patch.object(engine,"vault") as vault:
+            self.error_code("confirmation_is_for_a_different_preview",engine.send,self.config,self.args(first))
+            vault.assert_not_called()
+
+    def test_accepted_mock_send_creates_one_shared_ledger_event(self):
+        if not os.environ.get("HEYMAIL_TEST_NODE") or not os.environ.get("HEYMAIL_TEST_MODULE_DIR"):
+            self.skipTest("Set HEYMAIL_TEST_NODE and HEYMAIL_TEST_MODULE_DIR for the Excel integration check.")
+        settings={"node":os.environ["HEYMAIL_TEST_NODE"],"module_dir":os.environ["HEYMAIL_TEST_MODULE_DIR"]}
+        self.config["tracker"]={**settings,"root":str(self.root/"ledger")}
+        self.job["application"]={"id":"test-fa","company":"测试公司","position":"FA实习生","location":"北京","jd_text":"合成测试JD"}
+        self.draft.write_text(json.dumps(self.job,ensure_ascii=False),encoding="utf-8")
+        result=engine.prepare(self.config,SimpleNamespace(draft=self.draft,state_dir=self.state,agent="豆包"))
+        with patch.object(engine,"vault",return_value="fake-offline-credential"),patch.object(engine,"connect",return_value=self.client):
+            sent=engine.send(self.config,self.args(result))
+        self.assertEqual(sent["status"],"accepted")
+        self.assertTrue(sent["tracker"]["ok"])
+        self.assertEqual(sent["tracker"]["rows"],1)
+        self.assertEqual(sent["agent"],"豆包")
+        self.assertEqual(len(list((self.root/"ledger/.events").glob("*.json"))),1)
+        self.assertTrue((self.root/"ledger/实习投递台账.xlsx").is_file())
+        with patch.object(engine,"vault") as vault:
+            self.error_code("already_submitted_or_uncertain_do_not_resend",engine.send,self.config,self.args(result))
+            vault.assert_not_called()
+        self.client.send_message.assert_called_once()
 
     def test_only_exact_confirmation_accepted(self):
         result = self.prepare()
@@ -239,3 +320,4 @@ class WorkflowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

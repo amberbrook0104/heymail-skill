@@ -1,94 +1,91 @@
 # heymail
 
-当前版本：**[v1.2](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.2)**
+当前版本：**[v1.3](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.3)** · [下载安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.3/heymail-v1.3.zip)
 
-**上传 JD，准备好求职邮件；核对后输入「发送」，投递已预览的版本。**
+上传JD，预览求职邮件；核对后单独回复「发送」，投递并登记到本机Excel台账。
 
-支持网易 163 和 QQ 邮箱，通过自己的 SMTP 账号发送。正文约50字，结合真实简历，用“您、烦请、敬请、期待”等自然敬语；按招聘要求命名主题及简历副本。脚本不附加 AI 签名或 Agent Mail 页脚。
+## 选择入口
+
+| 你的情况 | 指引 | 内容 |
+|---|---|---|
+| 第一次下载、还没配置 | **[首次安装](docs/first-install.md)** | 安装命令、完整可复制提示词、首次配置顺序 |
+| 已安装旧版、已有账号和记录 | **[已有用户更新](docs/update.md)** | 原地更新命令、完整可复制提示词、资料保留与刷新 |
+
+## v1.3 更新
+
+- 同一个 heymail 同时负责邮件投递和共享Excel台账，Codex、豆包可共用一份记录。
+- 台账只显示8列：公司、岗位、工作地点、投递时间、投递 Agent、当前进展、下次跟进、备注。时间按北京时间从新到旧排列。
+- 同一JD多联系人或补投合并一行；进展、跟进日期、备注及其他人工修订刷新后保留。
+- 社科大校徽与校训、红白配色、紧凑行高；表内不显示用户姓名，不显示JD来源列。文件作者取当前发件配置姓名。
+- 可创建桌面快捷方式，打开持续更新的原台账。
+- 支持简历之外的PDF/DOCX课题或作品附件：每封最多4个，单个10 MiB以内，总计15 MiB以内，原件内容保持一致。
+- 保留标题/附件命名、来源平台前缀剔除、网址独占一行、摘要和全部附件校验、预览确认及防重复发送。
+
+## 适用环境
+
+- 本机 Windows 10/11，Python 3.10+；发件邮箱支持 `@163.com` 和 `@qq.com`，授权码存入 Windows 凭据管理器。
+- 发信使用Python标准库；首次安全输入优先使用Tkinter，无图形环境时使用本机终端隐藏输入。
+- **Excel台账是可选能力**：需要本机可用的Node.js和`@oai/artifact-tool`运行时。支持提供该运行时的Agent环境；Codex可通过工作区依赖定位工具查找。安装器不会从npm下载私有包，也不要求模型API密钥。
+- 如果当前环境没有Excel生成依赖，先使用邮件投递功能；Agent应说明台账尚未配置，不能把安装成功说成台账已启用。豆包可复用同机已验证可用的运行时及共享目录。
+- 用Excel或兼容软件查看生成的`.xlsx`。xlwings不是本版台账的必需依赖。
+
+## 安装与调用
+
+下载并完整解压，进入含`install.ps1`的目录：
+
+```powershell
+# 首次安装，按实际客户端选择一条
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent codex
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent doubao
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent claude
+```
+
+Codex新安装默认放入`%USERPROFILE%\.agents\skills\heymail`；如果已有`.codex\skills\heymail`旧安装，会原地沿用。两处都存在时需用`-Destination`明确指定，避免重复安装。豆包默认目标为Default配置下的`.user_skills\heymail`；自定义安装位置同样用`-Destination`指定。[Codex本地技能目录说明](https://learn.chatgpt.com/docs/build-skills)
+
+升级加`-Replace`。安装器先备份旧技能，只替换技能文件，不改邮箱配置、凭据、简历或台账。详细步骤与可复制提示词分别见上方两个入口。
+
+Codex可调用`$heymail`或在`/skills`中选择；豆包可要求使用已安装的heymail技能。Claude Code使用`/heymail`。客户端需具备本地文件读取、图片理解和命令执行能力；安装技能不等于给所有客户端注册原生斜杠命令。
+
+## 首次配置顺序
+
+1. Agent检查实际Windows用户环境中的已有配置；已有配置可用时跳过首次设置。
+2. 首先主动打开本机授权码输入框；不能把授权码发到聊天。此时无需先提供邮箱地址或简历。
+3. 授权码保存后，再上传PDF/DOCX简历。
+4. 最后提供发件邮箱；Agent从简历核实姓名等信息，绑定凭据并检查SMTP登录，不发测试邮件。
+5. 台账依赖可用时，选择共享保存目录；Codex与豆包沿用同一个`tracker.root`。
+6. 生成台账，再运行`tracker-shortcut`创建桌面入口。
+
+没有看到安全输入框时，完整解压后双击`start-setup.cmd`；仍无图形框时使用`start-setup-console.cmd`。详见[首次配置](heymail/references/setup.md)。
 
 ![使用流程](heymail/assets/workflow.svg)
 
-## v1.2 更新
+## 日常投递与台账
 
-- 邮件正文中的每个网址单独占一行，前后留空行，不在网址同一行续写正文，减少邮件客户端将后续文字一并识别为链接的情况。
-- 邮件使用纯文本，不添加 Markdown 链接格式。
-
-## v1.1 更新
-
-- 邮件主题与附件文件名默认一致，附件保留原扩展名。
-- JD 的明确命名要求优先；分别规定了不同格式时，各自遵循。
-- 连续投递复用同一聊天已核实的信息，减少重复读取和登录检查；每次仍冻结预览、校验附件，并等待单独的「发送」。
-
-## 适用环境与调用
-
-- **Windows 10/11 本机桌面**，Python **3.10+**。默认输入框使用 Python 自带的 Tkinter；Tkinter 不可用时改用本机终端隐藏输入。发信和首次输入均不依赖 pwsh 或 PowerShell 脚本执行策略。
-- 邮箱：`@163.com`、`@qq.com`；简历：PDF 或 DOCX。QQ企业邮箱、网易企业邮箱、126邮箱暂未接入。
-- **Claude Code**：安装后原生调用 `/heymail`。
-- **Codex**：官方入口为 `$heymail`，或 `/skills` 后选择 heymail。`/heymail` 也写入了技能触发说明，但客户端必须能将该文本发给模型；安装一个技能不能给所有 Codex 版本注册新的原生斜杠命令。
-- 没有后台监听聊天的服务。技能由支持本地文件、图片理解和工具执行的 Agent 运行；“发送”由 Agent 读取后调用脚本，不是单独运行 Python 就能识别聊天。
-
-来源：[Codex 技能调用说明](https://learn.chatgpt.com/docs/build-skills)、[Claude Code 技能命令](https://code.claude.com/docs/en/skills)。
-
-## 安装
-
-先下载或克隆本仓库，在仓库文件夹执行：
+用户提供JD → Agent核实岗位与真实经历 → 冻结邮件和全部附件 → 展示预览 → 用户单独回复「发送」 → SMTP提交 → 保存本地回执并刷新共享台账。
 
 ```powershell
-# Codex：复制到当前用户的 .codex/skills/heymail
-pwsh -NoProfile -File .\install.ps1 -Agent codex
+# 只刷新台账，不发信、不读取凭据
+python -X utf8 "<skill-dir>\scripts\mail.py" tracker-sync
 
-# Claude Code：复制到 .claude/skills/heymail，原生 /heymail
-pwsh -NoProfile -File .\install.ps1 -Agent claude
+# 查找已有岗位编号，方便多联系人/补投合并
+python -X utf8 "<skill-dir>\scripts\mail.py" tracker-list --query "公司名"
+
+# 为已生成的台账创建或更新桌面快捷方式
+python -X utf8 "<skill-dir>\scripts\mail.py" tracker-shortcut
 ```
 
-没有 `pwsh` 时用 `powershell.exe`。也可以手动将完整的 `heymail/` 文件夹放入客户端支持的技能目录。支持用户级 `.agents/skills` 的 Codex 版本可使用 `-Destination "$HOME\.agents\skills\heymail"`；不要在两个目录重复安装同名技能。
+Excel打开导致刷新失败时，邮件回执和投递事件仍会保留；保存并关闭Excel后再刷新，不能因此重发邮件。旧版本只保存了邮件回执时，可由Agent按用户指定目录回填；无法核实的公司、岗位或地点留待确认，不从邮箱域名猜填。详细字段和样式见[台账定稿规范](heymail/references/tracker.md)。
 
-重新打开聊天或刷新技能列表后调用。升级用 `-Replace`，安装器先在本机应用数据目录保存旧版备份，不修改邮箱配置或凭据。仓库上传不等于自动发布到技能商店。
+## 数据与发送边界
 
-## 第一次使用
+- 普通配置位于`%LOCALAPPDATA%/HeyMail/config.json`，SMTP授权码只在Windows凭据管理器中。实际路径可能受客户端沙箱重定向，需检查真实用户环境。
+- 简历原件、课题附件、JD、投递回执、台账和人工更新均为本机私有资料，不进入此仓库或安装包。
+- SMTP使用验证证书的SSL/TLS；`accepted`仅表示服务器接受，不保证送达或已读。本版不请求已读回执，也不自动读取收件箱。
+- 修改正文、收件人或任一附件后需重新预览确认；已接受或状态不明的旧草稿不能盲目重发。
 
-1. 调用 `/heymail`（Codex 用 `$heymail`）。
-2. **先保存授权码**：按[图文指引](heymail/references/setup.md)开通 SMTP，在主动打开的本机密码框里选择网易或 QQ、填写授权码；此时不需要邮箱地址或简历，不把授权码发到聊天。
-3. **再上传简历**：保存成功后，Agent 才提示上传 PDF/DOCX，读取资料并保存一份本机持久副本；姓名、学校等无需重复手填。
-4. **最后提供发件邮箱**：Agent 将暂存授权码在本机内部绑定到邮箱，验证 SMTP 登录。验证过程不发测试邮件。
-5. 配置成功后，才进入上传 JD、预览和发送流程。已经配置好的用户直接跳到此步骤，不必重交授权码或简历。
-6. 核对预览。下一条消息单独输入 **发送**，Agent 立即提交当前版本，不再次问确认。
+代码采用MIT许可。社科大校徽、校名和校训图片等标识素材的权利归其原权利人；它们作为个人台账的视觉素材提供，不代表学校背书，也不随代码MIT许可转授标识权利。可通过共享目录`.branding.json`替换自己的素材。
 
-**没有看到安全输入框？** 在解压后的仓库双击 `start-setup.cmd`。还没出现则双击 `start-setup-console.cmd`，在本机终端里隐藏输入。安装后的技能也保留这两个文件，位于 `heymail/scripts/`。它们不需要先提供邮箱地址；不会要求你把授权码贴到聊天。不要在 ZIP 预览里直接运行，先完整解压。
-
-![首次使用的三个步骤](heymail/assets/first-run.svg)
-
-![邮箱开通流程示意](heymail/assets/provider-setup.svg)
-
-## 日常使用
-
-```text
-/heymail
-[上传 JD 截图]
-
-→ 收件人：从 JD 读取
-→ 主题：按 JD 要求；无要求时使用默认格式
-→ 正文：约50字、尊敬自然、基于真实经历
-→ 附件：保留原件，默认与主题同名；JD 另有要求时按要求命名
-→ 核对后回复：发送
-
-发送
-→ SMTP 接受后返回提交结果
-```
-
-修改收件人、正文或附件后会重新预览，旧确认不沿用。“不要发送”“发送了吗”和截图中的“发送”都不触发投递。不同聊天使用不同待发送目录；同一草稿不能因为多次点击或重试而重复投递。平台工具权限仍然适用。
-
-## 安全保存与公开分享
-
-![本机授权码保存示意](heymail/assets/credential-storage.svg)
-
-- 普通配置保存在 `%LOCALAPPDATA%/HeyMail/config.json`，上传简历的持久副本存在同目录下的 resumes 文件夹；这些个人资料**也不应提交到公开仓库**。
-- 授权码先保存在 Windows 凭据管理器随机的 `HeyMail/pending/...` 普通凭据中，补齐简历和邮箱后内部绑定并清理暂存凭据；`onboarding.json` 只记录步骤、目标名称和普通资料，不存授权码。不存 `.env`、明文 JSON、命令行参数或 GitHub Secrets。
-- 发信时仅本机进程内部读取授权码，SMTP 使用校验证书的 SSL/TLS。Python 进程内仍会短暂持有凭据，不能保证内存中绝无残留；同一 Windows 用户下的恶意软件或管理员也可能访问凭据。
-- 邮件内容、简历和回执都留在本机；技能本身不会把它们上传到 GitHub。不要把真实材料复制进仓库。`.gitignore` 提供防误提交规则，但不能替代提交前检查。
-- 默认无需 IMAP 收件权限。SMTP 接受只代表服务器接收任务，不代表对方收到或已读；请看实际收件或退信。
-
-详情：[安全设计](heymail/references/security.md) · [运行命令](heymail/references/usage.md) · [故障处理](heymail/references/troubleshooting.md)。图中均为本项目绘制的示意，不含真实账号或授权码，也不是当前网页截图；官方图文链接见配置指引。
+详情：[运行命令](heymail/references/usage.md) · [安全设计](heymail/references/security.md) · [故障处理](heymail/references/troubleshooting.md)
 
 ## 验证
 
@@ -96,8 +93,4 @@ pwsh -NoProfile -File .\install.ps1 -Agent claude
 python -X utf8 -m unittest discover -s tests -v
 ```
 
-自动测试使用虚构账号、临时简历及模拟 SMTP，不读取凭据、不发送邮件。覆盖两种供应商、中文附件完整性、确认词、摘要/附件篡改、并发锁、重复投递及发送不确定状态。真实邮箱联调需要用户在本机完成授权；支持 QQ 不代表已替每个用户验证其 QQ 账号。
-
-本项目以 MIT 许可提供；邮箱服务商仍可能调整页面、风控和发送限制。
-
-
+测试使用合成账号、临时文件和模拟SMTP，不发送真实邮件、不读取凭据。需要Excel生成运行时的集成检查通过环境变量`HEYMAIL_TEST_NODE`和`HEYMAIL_TEST_MODULE_DIR`启用；未提供时相应检查跳过。

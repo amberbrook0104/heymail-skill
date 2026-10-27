@@ -24,6 +24,20 @@ receipt.json
 *.docx
 *.jpg
 *.jpeg
+!heymail/assets/ucass/motto.jpg
+*.xlsx
+*.xls
 *.eml
 *.log
 *.zip
+
+
+# Private tracker material
+.events/
+.state.json
+.export.json
+.sync.lock
+*.lnk
+*.inspect.ndjson
+tracker-settings.json
+shared-settings.json

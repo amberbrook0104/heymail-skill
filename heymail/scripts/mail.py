@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,8 @@ import uuid
 PROVIDERS = {"163": {"domain": "163.com", "smtp": "smtp.163.com"},
              "qq": {"domain": "qq.com", "smtp": "smtp.qq.com"}}
 MAX_ATTACHMENT = 10 * 1024 * 1024
+MAX_TOTAL_ATTACHMENTS = 15 * 1024 * 1024
+MAX_ATTACHMENTS = 4
 BLOCKED = {"accepted", "submitting", "uncertain"}
 
 
@@ -76,7 +79,7 @@ def email_address(value):
 
 def validate_config(value):
     allowed = {"version", "provider", "email", "display_name", "resume_path",
-               "credential_target", "applicant"}
+               "credential_target", "applicant", "tracker"}
     if not isinstance(value, dict) or set(value) - allowed:
         raise MailError("config_unknown_fields_no_secrets_allowed")
     provider = value.get("provider")
@@ -93,6 +96,13 @@ def validate_config(value):
     fields = {"name", "school", "degree", "grade", "days_per_week", "months", "start_date"}
     if not isinstance(applicant, dict) or set(applicant) - fields:
         raise MailError("invalid_applicant_profile")
+    tracker = value.get("tracker")
+    if tracker is not None:
+        if not isinstance(tracker, dict) or set(tracker) != {"root", "node", "module_dir"}:
+            raise MailError("invalid_tracker_settings")
+        if not all(isinstance(v, str) and v.strip() and "\n" not in v and "\r" not in v
+                   for v in tracker.values()):
+            raise MailError("invalid_tracker_settings")
     return value
 
 
@@ -282,6 +292,9 @@ def setup(args):
     if path.exists():
         if not args.replace:
             raise MailError("config_exists_use_replace_for_intended_update")
+        previous = load_config(path)
+        if previous.get("tracker"):
+            config["tracker"] = previous["tracker"]
         shutil.copy2(path, path.with_name(path.name + "." + uuid.uuid4().hex + ".bak"))
     pending_path = getattr(args, "pending_credential", None)
     pending = None
@@ -324,19 +337,51 @@ def read_pending(directory):
     return pointer, draft_dir, manifest, digest
 
 
+def ledger_module():
+    path = Path(__file__).with_name("tracker.py")
+    spec = importlib.util.spec_from_file_location("heymail_tracker", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def track_delivery(config, manifest, receipt, receipt_path):
+    if not config.get("tracker"):
+        return None
+    try:
+        return ledger_module().record_submission(config, manifest, receipt, receipt_path, __file__)
+    except Exception as error:
+        return {"ok": False, "refresh_pending": True, "error_type": type(error).__name__,
+                "note": "投递回执已保留，台账待同步；不要重发邮件"}
+
+
 def preview(manifest, digest, draft_dir):
+    attachments = [manifest["attachment"], *manifest.get("additional_attachments", [])]
     return {"ok": True, "status": "prepared_waiting_for_user_send", "digest": digest,
             "from": manifest["sender"]["email"], "to": manifest["to"],
             "subject": manifest["subject"], "body": manifest["body"],
             "attachment": str(draft_dir / manifest["attachment"]["filename"]),
             "attachment_sha256": manifest["attachment"]["sha256"],
+            "agent": manifest.get("agent"), "application": manifest.get("application", {}),
+            "attachments": [{"filename": item["filename"],
+                             "path": str(draft_dir / item["filename"]),
+                             "sha256": item["sha256"], "size": item["size"]}
+                            for item in attachments],
             "next_user_message": "发送"}
 
 
 def prepare(config, args):
     job = read_json(args.draft)
-    if set(job) - {"to", "subject", "body", "attachment_name"}:
+    if set(job) - {"to", "subject", "body", "attachment_name", "additional_attachments", "application"}:
         raise MailError("unexpected_draft_fields")
+    try:
+        application = ledger_module().normalize_application(job.get("application"))
+    except ValueError as error:
+        raise MailError(str(error)) from error
+    agent = getattr(args, "agent", None) or ledger_module().agent_name(__file__)
+    if not isinstance(agent, str) or not agent.strip() or len(agent) > 30 or any(c in agent for c in "\r\n"):
+        raise MailError("invalid_agent_name")
+    application["id"] = ledger_module().application_id(application, job)
     email_address(job.get("to"))
     if not isinstance(job.get("subject"), str) or not job["subject"].strip() or any(
             c in job["subject"] for c in "\r\n\x00"):
@@ -356,17 +401,59 @@ def prepare(config, args):
         raise MailError("invalid_pdf_header")
     if source.suffix.lower() == ".docx" and not data.startswith(b"PK"):
         raise MailError("invalid_docx_header")
+    additional = job.get("additional_attachments", [])
+    if not isinstance(additional, list) or len(additional) > MAX_ATTACHMENTS - 1:
+        raise MailError("invalid_additional_attachments")
+    attachment_files = [{"source": source, "filename": filename,
+                         "sha256": sha(data), "size": len(data), "data": data}]
+    seen_filenames = {filename.casefold()}
+    total_size = len(data)
+    for item in additional:
+        if not isinstance(item, dict) or set(item) != {"path", "attachment_name"}:
+            raise MailError("invalid_additional_attachment_fields")
+        if not all(isinstance(item[key], str) and item[key].strip()
+                   for key in ("path", "attachment_name")):
+            raise MailError("invalid_additional_attachment_fields")
+        extra_source = Path(item["path"]).resolve(strict=True)
+        if extra_source.suffix.lower() not in (".pdf", ".docx"):
+            raise MailError("attachment_must_be_pdf_or_docx")
+        extra_filename = safe_filename(item["attachment_name"])
+        if Path(extra_filename).suffix.lower() != extra_source.suffix.lower():
+            raise MailError("attachment_extension_must_match_original")
+        if extra_filename.casefold() in seen_filenames:
+            raise MailError("duplicate_attachment_filename")
+        seen_filenames.add(extra_filename.casefold())
+        extra_data = extra_source.read_bytes()
+        if not extra_data or len(extra_data) > MAX_ATTACHMENT:
+            raise MailError("attachment_empty_or_larger_than_10mib")
+        if extra_source.suffix.lower() == ".pdf" and not extra_data.startswith(b"%PDF-"):
+            raise MailError("invalid_pdf_header")
+        if extra_source.suffix.lower() == ".docx" and not extra_data.startswith(b"PK"):
+            raise MailError("invalid_docx_header")
+        total_size += len(extra_data)
+        if total_size > MAX_TOTAL_ATTACHMENTS:
+            raise MailError("attachments_total_larger_than_15mib")
+        attachment_files.append({"source": extra_source, "filename": extra_filename,
+                                 "sha256": sha(extra_data), "size": len(extra_data),
+                                 "data": extra_data})
     directory = args.state_dir.resolve()
     with state_lock(directory):
         identifier = uuid.uuid4().hex
         draft_dir = directory / identifier
         draft_dir.mkdir()
-        (draft_dir / filename).write_bytes(data)
-        if sha((draft_dir / filename).read_bytes()) != sha(data):
-            raise MailError("attachment_copy_integrity_failed")
+        for item in attachment_files:
+            target = draft_dir / item["filename"]
+            target.write_bytes(item["data"])
+            if sha(target.read_bytes()) != item["sha256"]:
+                raise MailError("attachment_copy_integrity_failed")
         manifest = {"version": 1, "sender": sender(config), "to": job["to"],
                     "subject": job["subject"], "body": job["body"],
-                    "attachment": {"filename": filename, "sha256": sha(data), "size": len(data)}}
+                    "agent": agent, "application": application,
+                    "attachment": {key: attachment_files[0][key]
+                                   for key in ("filename", "sha256", "size")},
+                    "additional_attachments": [
+                        {key: item[key] for key in ("filename", "sha256", "size")}
+                        for item in attachment_files[1:]]}
         digest = sha(canonical(manifest))
         atomic_json(draft_dir / "manifest.json", manifest)
         atomic_json(directory / "pending.json", {"draft_id": identifier, "digest": digest})
@@ -376,13 +463,16 @@ def prepare(config, args):
 
 
 def build_message(manifest, draft_dir):
-    attachment = manifest["attachment"]
-    filename = attachment["filename"]
-    if safe_filename(filename) != filename or Path(filename).name != filename:
-        raise MailError("unsafe_attachment_path")
-    data = (draft_dir / filename).read_bytes()
-    if sha(data) != attachment["sha256"] or len(data) != attachment["size"]:
-        raise MailError("attachment_changed_prepare_and_review_again")
+    attachments = [manifest["attachment"], *manifest.get("additional_attachments", [])]
+    verified_attachments = []
+    for attachment in attachments:
+        filename = attachment["filename"]
+        if safe_filename(filename) != filename or Path(filename).name != filename:
+            raise MailError("unsafe_attachment_path")
+        data = (draft_dir / filename).read_bytes()
+        if sha(data) != attachment["sha256"] or len(data) != attachment["size"]:
+            raise MailError("attachment_changed_prepare_and_review_again")
+        verified_attachments.append((filename, data))
     msg = EmailMessage()
     msg["From"] = formataddr((manifest["sender"]["display_name"], manifest["sender"]["email"]))
     msg["To"] = email_address(manifest["to"])
@@ -390,8 +480,10 @@ def build_message(manifest, draft_dir):
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain=manifest["sender"]["email"].split("@")[1])
     msg.set_content(manifest["body"], charset="utf-8")
-    subtype = "pdf" if filename.lower().endswith(".pdf") else "vnd.openxmlformats-officedocument.wordprocessingml.document"
-    msg.add_attachment(data, maintype="application", subtype=subtype, filename=filename)
+    for filename, data in verified_attachments:
+        subtype = ("pdf" if filename.lower().endswith(".pdf") else
+                   "vnd.openxmlformats-officedocument.wordprocessingml.document")
+        msg.add_attachment(data, maintype="application", subtype=subtype, filename=filename)
     return msg
 
 
@@ -437,7 +529,10 @@ def send(config, args):
             secret = None
         receipt = {"status": "submitting", "time": now(), "digest": digest,
                    "from": config["email"], "to": manifest["to"],
-                   "subject": manifest["subject"], "message_id": str(msg["Message-ID"])}
+                   "subject": manifest["subject"], "message_id": str(msg["Message-ID"]),
+                   "agent": manifest.get("agent") or ledger_module().agent_name(__file__),
+                   "attachments": [manifest["attachment"]["filename"],
+                                   *[item["filename"] for item in manifest.get("additional_attachments", [])]]}
         try:
             atomic_json(receipt_path, receipt)
             try:
@@ -448,15 +543,21 @@ def send(config, args):
                     smtplib.SMTPDataError) as error:
                 receipt.update(status="rejected", error_type=type(error).__name__, time=now())
                 atomic_json(receipt_path, receipt)
+                track_delivery(config, manifest, receipt, receipt_path)
                 raise
             except Exception:
                 receipt.update(status="uncertain", time=now())
                 atomic_json(receipt_path, receipt)
+                track_delivery(config, manifest, receipt, receipt_path)
                 raise
             receipt.update(status="accepted", time=now())
             atomic_json(receipt_path, receipt)
-            return {"ok": True, **receipt, "receipt": str(receipt_path),
-                    "note": "smtp_accepted_delivery_not_verified"}
+            result = {"ok": True, **receipt, "receipt": str(receipt_path),
+                      "note": "smtp_accepted_delivery_not_verified"}
+            tracking = track_delivery(config, manifest, receipt, receipt_path)
+            if tracking is not None:
+                result["tracker"] = tracking
+            return result
         finally:
             close(client)
 
@@ -481,9 +582,15 @@ def main():
     status = commands.add_parser("status", help="Show non-secret profile and optional pending draft")
     status.add_argument("--state-dir", type=Path)
     commands.add_parser("check", help="Authenticate SMTP; do not send a message")
+    commands.add_parser("tracker-sync", help="Refresh the shared local ledger; no mail sent")
+    shortcut = commands.add_parser("tracker-shortcut", help="Create/update a desktop shortcut to the live ledger; no mail sent")
+    shortcut.add_argument("--desktop", type=Path, help="Optional desktop directory override")
+    listing = commands.add_parser("tracker-list", help="Find shared ledger application IDs; no mail sent")
+    listing.add_argument("--query", default="")
     prep = commands.add_parser("prepare", help="Freeze a draft and resume copy; no network")
     prep.add_argument("--draft", type=Path, required=True)
     prep.add_argument("--state-dir", type=Path, required=True)
+    prep.add_argument("--agent", help="Actual calling agent, e.g. Codex or 豆包")
     submit = commands.add_parser("send", help="Send only the reviewed pending draft")
     submit.add_argument("--state-dir", type=Path, required=True)
     submit.add_argument("--expected-digest", required=True)
@@ -510,6 +617,18 @@ def main():
         emit(result)
     elif args.command == "prepare":
         emit(prepare(config, args))
+    elif args.command == "tracker-sync":
+        if not config.get("tracker"):
+            raise MailError("tracker_not_configured")
+        emit({"ok": True, **ledger_module().sync({**config["tracker"], "author": config["display_name"]})})
+    elif args.command == "tracker-shortcut":
+        if not config.get("tracker"):
+            raise MailError("tracker_not_configured")
+        emit({"ok": True, **ledger_module().create_desktop_shortcut(config["tracker"], args.desktop)})
+    elif args.command == "tracker-list":
+        if not config.get("tracker"):
+            raise MailError("tracker_not_configured")
+        emit({"ok": True, "applications": ledger_module().list_applications(config["tracker"], args.query)})
     elif args.command == "check":
         secret = vault(config)
         try:
