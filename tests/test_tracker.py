@@ -64,10 +64,11 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(tracker.recipient_emails([{}]),'')
 
     def test_reader_maps_old_and_new_headers_to_same_manual_fields(self):
-        for headers in [tracker.HEADERS, [h for h in tracker.HEADERS if h!='收件邮箱']]:
+        legacy_headers=['下次跟进' if h=='最新进展' else h for h in tracker.HEADERS]
+        for headers in [tracker.HEADERS, legacy_headers, [h for h in legacy_headers if h!='收件邮箱']]:
             values={'公司':'示例公司','岗位':'示例岗位','工作地点':'北京','投递时间':'2026-10-27',
                     '投递 Agent':'Codex','收件邮箱':'hr@example.com','当前进展':'面试中',
-                    '下次跟进':'2026-11-02','备注':'旧表中的人工备注','_record_id':'stable-old-job'}
+                    '下次跟进':'2026-11-02','最新进展':'已约11月2日面试','备注':'旧表中的人工备注','_record_id':'stable-old-job'}
             ns=tracker.NS['s'];sheet=ET.Element('{'+ns+'}worksheet');grid=ET.SubElement(sheet,'{'+ns+'}sheetData')
             for r,items in [(4,headers),(5,[values[h] for h in headers])]:
                 row=ET.SubElement(grid,'{'+ns+'}row',{'r':str(r)})
@@ -78,7 +79,7 @@ class TrackerTests(unittest.TestCase):
             with zipfile.ZipFile(book,'w') as archive:archive.writestr('xl/worksheets/sheet1.xml',ET.tostring(sheet))
             cells=tracker.read_workbook_rows(book)['stable-old-job']
             self.assertEqual(cells['F'],'面试中')
-            self.assertEqual(cells['G'],'2026-11-02')
+            self.assertEqual(cells['G'],'已约11月2日面试' if '最新进展' in headers else '2026-11-02')
             self.assertEqual(cells['I'],'旧表中的人工备注')
             self.assertEqual(cells['K'],'hr@example.com' if '收件邮箱' in headers else None)
 
@@ -108,7 +109,7 @@ class TrackerTests(unittest.TestCase):
         ns=tracker.NS['s']; sheet=ET.fromstring(data['xl/worksheets/sheet1.xml'])
         grid=sheet.find('s:sheetData',tracker.NS)
         row5=next(r for r in grid if r.attrib['r']=='5')
-        for col,value in [('A','手动确认的公司'),('G','面试中'),('H',float((date(2026,11,2)-date(1899,12,30)).days)),('I','手工备注，刷新后保留')]:
+        for col,value in [('A','手动确认的公司'),('G','面试中'),('H','已约11月2日面试，等待会议链接'),('I','手工备注，刷新后保留')]:
             cell=next((c for c in row5 if c.attrib['r']==col+'5'),None)
             if cell is None:cell=ET.SubElement(row5,'{'+ns+'}c',{'r':col+'5'})
             cell.clear();cell.set('r',col+'5')
@@ -137,7 +138,7 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(cells['A'],'手动确认的公司')
         self.assertEqual(cells['F'],'面试中')
         self.assertEqual(cells['I'],'手工备注，刷新后保留')
-        self.assertEqual(cells['G'],float((date(2026,11,2)-date(1899,12,30)).days))
+        self.assertEqual(cells['G'],'已约11月2日面试，等待会议链接')
         self.assertIsNone(cells['H'])
         self.assertEqual(cells['K'],'hr@example.com')
         with zipfile.ZipFile(book) as z:
@@ -147,6 +148,12 @@ class TrackerTests(unittest.TestCase):
             self.assertEqual(sheet.find("s:cols/s:col[@min='10']",tracker.NS).attrib['hidden'],'1')
             self.assertEqual(len(list(sheet.find("s:sheetData/s:row[@r='4']",tracker.NS))),10)
             self.assertFalse(sheet.findall('s:hyperlinks/s:hyperlink',tracker.NS))
+            self.assertFalse(any('TODAY()' in ''.join(rule.itertext()) for rule in sheet.findall('s:conditionalFormatting',tracker.NS)))
+
+    def test_legacy_dates_remain_readable_in_latest_progress(self):
+        serial=float((date(2026,11,2)-date(1899,12,30)).days)
+        self.assertEqual(tracker.latest_progress_text(serial,legacy_date=True),'2026-11-02')
+        self.assertEqual(tracker.latest_progress_text('HR已回复，等待面试通知'),'HR已回复，等待面试通知')
 
     def test_numeric_and_iso_dates_sort_consistently(self):
         values=['2026-10-27T00:00:00',float((date(2026,10,28)-date(1899,12,30)).days),'2026-10-26T00:00:00Z']

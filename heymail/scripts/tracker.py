@@ -14,7 +14,8 @@ import xml.etree.ElementTree as ET
 import zipfile
 from xml.sax.saxutils import escape
 
-HEADERS = ["公司", "岗位", "工作地点", "投递时间", "投递 Agent", "收件邮箱", "当前进展", "下次跟进", "备注", "_record_id"]
+HEADERS = ["公司", "岗位", "工作地点", "投递时间", "投递 Agent", "收件邮箱", "当前进展", "最新进展", "备注", "_record_id"]
+# Retain the historical storage key so existing private state remains compatible.
 MANUAL = ("company", "position", "location", "progress", "follow_up", "notes")
 STATES = {"accepted": "已投递", "rejected": "投递失败", "uncertain": "发送待核实", "submitting": "发送待核实"}
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -155,6 +156,7 @@ def read_workbook_rows(path):
         notes_column = headers.get("备注", "I")
         id_column = headers.get("_record_id", "J")
         recipient_column = headers.get("收件邮箱")
+        latest_column = headers.get("最新进展", headers.get("下次跟进", "G"))
         relationships = {}
         rel_path = "xl/worksheets/_rels/sheet1.xml.rels"
         if rel_path in archive.namelist():
@@ -193,8 +195,9 @@ def read_workbook_rows(path):
             # Keep stable semantic slots for both the old and new physical layouts.
             physical = cells
             semantic_headers = {"A": "公司", "B": "岗位", "C": "工作地点", "D": "投递时间",
-                                "E": "投递 Agent", "F": "当前进展", "G": "下次跟进"}
+                                "E": "投递 Agent", "F": "当前进展"}
             cells = {col: physical.get(headers.get(label, col)) for col, label in semantic_headers.items()}
+            cells["G"] = latest_progress_text(physical.get(latest_column), legacy_date="最新进展" not in headers)
             cells.update(H=physical.get(source_column) if source_column else None,
                          I=physical.get(notes_column), J=physical.get(id_column),
                          K=physical.get(recipient_column) if recipient_column else None)
@@ -205,6 +208,16 @@ def read_workbook_rows(path):
                 cells["J"] = "manual_" + hashlib.sha256(json.dumps(identity, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:24]
             result[str(cells["J"])] = cells
         return result
+
+
+def latest_progress_text(value, legacy_date=False):
+    if value is None or value == "":
+        return None
+    if isinstance(value, dict) and value.get("formula"):
+        return "原有公式：" + value["formula"]
+    if isinstance(value, (int, float)) and legacy_date:
+        return (datetime(1899, 12, 30) + timedelta(days=value)).strftime("%Y-%m-%d")
+    return str(value)
 
 
 def recipient_emails(events):
@@ -347,7 +360,7 @@ def sync(settings, render=False):
         for identifier, cells in state["manual_rows"].items():
             rows.append({"id": identifier, "company": cells.get("A"), "position": cells.get("B"),
                          "location": cells.get("C"), "time": cells.get("D"), "agent": cells.get("E"),
-                         "progress": cells.get("F"), "follow_up": cells.get("G"),
+                         "progress": cells.get("F"), "follow_up": latest_progress_text(cells.get("G"), legacy_date=True),
                          "recipients": cells.get("K") or "",
                          "source": cells.get("H") or {"label": "待补充", "target": ""}, "notes": cells.get("I")})
         for row in rows:

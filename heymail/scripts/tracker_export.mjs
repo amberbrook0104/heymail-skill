@@ -68,8 +68,14 @@ const excelDate = value => {
   const date = new Date(value.endsWith('Z') ? value : value.replace(' ', 'T') + 'Z');
   return Number.isNaN(date.getTime()) ? value : date;
 };
+const latestProgress = value => {
+  if(value == null || value === '') return null;
+  if(typeof value === 'number') return new Date(Date.UTC(1899,11,30)+value*86400000).toISOString().slice(0,10);
+  if(typeof value === 'object') return value.formula ? '原有公式：'+value.formula : null;
+  return String(value);
+};
 const matrix = input.rows.map(row => [row.company,row.position,row.location,excelDate(row.time),row.agent,
-  row.recipients || null,row.progress,excelDate(row.follow_up),row.notes || null,row.id]);
+  row.recipients || null,row.progress,latestProgress(row.follow_up),row.notes || null,row.id]);
 sheet.getRange('A4:J4').values = [input.headers];
 if (matrix.length) sheet.getRange(`A5:J${matrix.length + 4}`).values = matrix.map(row => row.map(v =>
   v && typeof v === 'object' && !(v instanceof Date) ? null : v));
@@ -81,15 +87,17 @@ sheet.getRange('A4:J4').format = {fill:palette.accent,font:{name:'Microsoft YaHe
 sheet.getRange(`A5:J${end}`).format.rowHeight = campus?22:38;
 sheet.getRange(`A5:C${end}`).format.wrapText = true;
 sheet.getRange(`F5:F${end}`).format.wrapText = true;
+sheet.getRange(`H5:H${end}`).format.wrapText = true;
 sheet.getRange(`I5:I${end}`).format.wrapText = true;
-const widths = campus?{A:23,B:27,C:10,D:21,E:13,F:36,G:11,H:14,I:43,J:14}
-                     :{A:22,B:30,C:13,D:23,E:16,F:36,G:15,H:17,I:58,J:14};
+const widths = campus?{A:23,B:27,C:10,D:21,E:13,F:36,G:11,H:28,I:43,J:14}
+                     :{A:22,B:30,C:13,D:23,E:16,F:36,G:15,H:28,I:58,J:14};
 for (const [col,width] of Object.entries(widths)) sheet.getRange(`${col}4:${col}${end}`).format.columnWidth=width;
 sheet.getRange(`D5:D${end}`).setNumberFormat('yyyy-mm-dd hh:mm');
 sheet.getRange(`D5:E${end}`).format.horizontalAlignment='center';
 sheet.getRange(`C5:C${end}`).format.horizontalAlignment='center';
-sheet.getRange(`G5:H${end}`).format.horizontalAlignment='center';
-sheet.getRange(`H5:H${end}`).setNumberFormat('yyyy-mm-dd');
+sheet.getRange(`G5:G${end}`).format.horizontalAlignment='center';
+sheet.getRange(`H5:H${end}`).format.horizontalAlignment='left';
+sheet.getRange(`H5:H${end}`).setNumberFormat('@');
 sheet.getRange(`G5:H${end}`).format.fill = palette.input;
 sheet.getRange(`I5:I${end}`).format.fill = campus?'#FFFDF9':'#FFF9EC';
 if(campus) {
@@ -101,14 +109,6 @@ sheet.getRange(`G5:G${Math.max(end,200)}`).dataValidation = {rule:{type:'list',v
 for (const [label,color] of [['已投递',campus?'#F4EEEC':'#EAF0F7'],['已回复','#E7F2FF'],['面试中','#FFF0C9'],['已录用','#DEF3E5'],['未通过','#FCE7E7'],['已放弃','#ECEFF2']]) {
   sheet.getRange(`G5:G${Math.max(end,200)}`).conditionalFormats.add('cellIs',{operator:'equal',formula:`"${label}"`,format:{fill:color}});
 }
-sheet.getRange(`H5:H${Math.max(end,200)}`).conditionalFormats.addCustom(
-  'AND(ISNUMBER(H5),H5<=TODAY(),$G5<>"已录用",$G5<>"未通过",$G5<>"已放弃")',
-  {fill:'#FBE0D9',font:{color:'#9B2C20',bold:true}});
-for (let i=0;i<input.rows.length;i++) {
-  const row=input.rows[i], r=i+5;
-  if (row.follow_up && typeof row.follow_up==='object' && row.follow_up.formula)
-    sheet.getRange(`H${r}`).formulas=[[row.follow_up.formula]];
-}
 const table=sheet.tables.add(`A4:J${end}`,true,'ApplicationsTable');
 table.style=campus?'TableStyleLight1':'TableStyleLight9';
 table.showFilterButton=true;
@@ -116,7 +116,7 @@ const visualLength=text=>Array.from(text||'').reduce((n,c)=>n+(c.charCodeAt(0)>2
 const wrappedLines=(text,width)=>String(text||'').split('\n').reduce((n,line)=>n+Math.max(1,Math.ceil(visualLength(line)/width)),0);
 for(let i=0;i<input.rows.length;i++) {
  const row=input.rows[i];
- const lines=Math.max(wrappedLines(row.company,widths.A),wrappedLines(row.position,widths.B),wrappedLines(row.notes,widths.I),wrappedLines(row.recipients,widths.F));
+ const lines=Math.max(wrappedLines(row.company,widths.A),wrappedLines(row.position,widths.B),wrappedLines(row.notes,widths.I),wrappedLines(row.recipients,widths.F),wrappedLines(latestProgress(row.follow_up),widths.H));
  const r=i+5;
  const rowRange=sheet.getRange(`A${r}:J${r}`);
  rowRange.format.rowHeight=campus?Math.max(22,lines*12+4):Math.max(38,lines*14+10);

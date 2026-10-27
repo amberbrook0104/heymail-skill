@@ -59,7 +59,7 @@ python -X utf8 "<skill-dir>/scripts/mail.py" prepare --draft "work/mail-draft.js
 
 `application` 可包含 `id/company/position/location/jd_source/jd_text/notes`，所有值为字符串。原始JD截图或文件使用 `jd_source`；JD文字使用 `jd_text`。同一JD多联系人、重投、切换Agent时复用已存在的 `id`；可通过 `tracker-list --query 公司名` 查询。`--agent` 指实际调用客户端，省略时按安装路径识别。岗位元数据与Agent均纳入确认摘要。
 
-`tracker-sync` 只刷新台账，不发送邮件、不读取凭据。Excel打开导致无法覆盖时，投递事件仍保留，关闭Excel后再运行该命令。Excel仅显示公司、岗位、工作地点、投递时间、投递 Agent、收件邮箱、当前进展、下次跟进和备注9列，并按投递时间倒序排列。手工修改的公司、岗位、地点、进展、跟进日期和备注会保留，隐藏技术编号列请勿删除。JD材料保留在后台归档，不再显示来源列。
+`tracker-sync` 只刷新台账，不发送邮件、不读取凭据。Excel打开导致无法覆盖时，投递事件仍保留，关闭Excel后再运行该命令。Excel仅显示公司、岗位、工作地点、投递时间、投递 Agent、收件邮箱、当前进展、最新进展和备注9列，并按投递时间倒序排列。手工修改的公司、岗位、地点、进展、最新进展和备注会保留，隐藏技术编号列请勿删除。JD材料保留在后台归档，不再显示来源列。
 
 桌面入口使用 `python -X utf8 "<skill-dir>/scripts/mail.py" tracker-shortcut`。它要求台账文件已存在，指向实时原文件，不修改Excel或发送邮件。可用 `--desktop "自定义桌面目录"` 覆盖默认桌面位置。
 
