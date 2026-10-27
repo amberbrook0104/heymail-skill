@@ -6,6 +6,7 @@
 
 1. 保存并关闭正在编辑的台账。
 2. 下载[v1.3完整安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.3/heymail-v1.3.zip)，解压到新的临时目录。
+   包内附有空白台账模板，仅供查看或从零使用；已有用户不要用它覆盖自己的实时台账。
 3. 先定位当前正在使用的技能目录，再在新版包中运行对应命令：
 
 ```powershell

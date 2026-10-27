@@ -5,6 +5,7 @@
 ## 下载与安装
 
 1. 下载[heymail v1.3安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.3/heymail-v1.3.zip)，完整解压。
+   包内`heymail/assets/templates/application-ledger.xlsx`为不含记录的空白台账模板，也可[单独下载](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.3/application-ledger.xlsx)。自动登记的实时台账在配置共享目录后生成。
 2. 进入包含`install.ps1`和`heymail/`的目录，按实际客户端选择一条命令：
 
 ```powershell

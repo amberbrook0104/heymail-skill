@@ -26,6 +26,7 @@ receipt.json
 *.jpeg
 !heymail/assets/ucass/motto.jpg
 *.xlsx
+!heymail/assets/templates/application-ledger.xlsx
 *.xls
 *.eml
 *.log
