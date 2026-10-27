@@ -46,7 +46,7 @@ class TrackerTests(unittest.TestCase):
     def test_same_message_deduplicates_and_agents_merge_per_job(self):
         tracker.record_event(self.settings,self.manifest,self.receipt,self.root/'receipt.json')
         tracker.record_event(self.settings,self.manifest,self.receipt,self.root/'receipt.json')
-        other={**self.receipt,'message_id':'<test-2@example.com>','time':'2026-10-28T01:00:00+00:00'}
+        other={**self.receipt,'to':'second@example.com','message_id':'<test-2@example.com>','time':'2026-10-28T01:00:00+00:00'}
         tracker.record_event(self.settings,self.manifest,other,self.root/'receipt2.json',agent='豆包')
         events=[tracker.read_json(p) for p in (self.root/'.events').glob('*.json')]
         self.assertEqual(len(events),2)
@@ -55,6 +55,32 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(rows[0]['agent'],'Codex、豆包')
         self.assertEqual(rows[0]['time'],'2026-10-27T09:00:00')
         self.assertIn('2026-10-28',rows[0]['notes'])
+        self.assertEqual(rows[0]['recipients'],'hr@example.com\nsecond@example.com')
+
+    def test_actual_recipient_addresses_deduplicate_without_guessing(self):
+        events=[{'recipient':'HR <hr@example.com>'},{'recipient':'HR@example.com'},
+                {'recipient':None},{'recipient':''},{'recipient':'second@example.com'}]
+        self.assertEqual(tracker.recipient_emails(events),'hr@example.com\nsecond@example.com')
+        self.assertEqual(tracker.recipient_emails([{}]),'')
+
+    def test_reader_maps_old_and_new_headers_to_same_manual_fields(self):
+        for headers in [tracker.HEADERS, [h for h in tracker.HEADERS if h!='收件邮箱']]:
+            values={'公司':'示例公司','岗位':'示例岗位','工作地点':'北京','投递时间':'2026-10-27',
+                    '投递 Agent':'Codex','收件邮箱':'hr@example.com','当前进展':'面试中',
+                    '下次跟进':'2026-11-02','备注':'旧表中的人工备注','_record_id':'stable-old-job'}
+            ns=tracker.NS['s'];sheet=ET.Element('{'+ns+'}worksheet');grid=ET.SubElement(sheet,'{'+ns+'}sheetData')
+            for r,items in [(4,headers),(5,[values[h] for h in headers])]:
+                row=ET.SubElement(grid,'{'+ns+'}row',{'r':str(r)})
+                for i,value in enumerate(items):
+                    cell=ET.SubElement(row,'{'+ns+'}c',{'r':chr(65+i)+str(r),'t':'inlineStr'})
+                    ET.SubElement(ET.SubElement(cell,'{'+ns+'}is'),'{'+ns+'}t').text=value
+            book=self.root/'legacy-or-new.xlsx'
+            with zipfile.ZipFile(book,'w') as archive:archive.writestr('xl/worksheets/sheet1.xml',ET.tostring(sheet))
+            cells=tracker.read_workbook_rows(book)['stable-old-job']
+            self.assertEqual(cells['F'],'面试中')
+            self.assertEqual(cells['G'],'2026-11-02')
+            self.assertEqual(cells['I'],'旧表中的人工备注')
+            self.assertEqual(cells['K'],'hr@example.com' if '收件邮箱' in headers else None)
 
     def test_spreadsheet_failure_keeps_submission_event(self):
         with patch.object(tracker,'sync',side_effect=PermissionError()):
@@ -82,7 +108,7 @@ class TrackerTests(unittest.TestCase):
         ns=tracker.NS['s']; sheet=ET.fromstring(data['xl/worksheets/sheet1.xml'])
         grid=sheet.find('s:sheetData',tracker.NS)
         row5=next(r for r in grid if r.attrib['r']=='5')
-        for col,value in [('A','手动确认的公司'),('F','面试中'),('G',float((date(2026,11,2)-date(1899,12,30)).days)),('H','手工备注，刷新后保留')]:
+        for col,value in [('A','手动确认的公司'),('G','面试中'),('H',float((date(2026,11,2)-date(1899,12,30)).days)),('I','手工备注，刷新后保留')]:
             cell=next((c for c in row5 if c.attrib['r']==col+'5'),None)
             if cell is None:cell=ET.SubElement(row5,'{'+ns+'}c',{'r':col+'5'})
             cell.clear();cell.set('r',col+'5')
@@ -113,12 +139,13 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(cells['I'],'手工备注，刷新后保留')
         self.assertEqual(cells['G'],float((date(2026,11,2)-date(1899,12,30)).days))
         self.assertIsNone(cells['H'])
+        self.assertEqual(cells['K'],'hr@example.com')
         with zipfile.ZipFile(book) as z:
             core=ET.fromstring(z.read('docProps/core.xml'))
             self.assertEqual(core.find('{http://purl.org/dc/elements/1.1/}creator').text,self.settings['author'])
             sheet=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
-            self.assertEqual(sheet.find("s:cols/s:col[@min='9']",tracker.NS).attrib['hidden'],'1')
-            self.assertEqual(len(list(sheet.find("s:sheetData/s:row[@r='4']",tracker.NS))),9)
+            self.assertEqual(sheet.find("s:cols/s:col[@min='10']",tracker.NS).attrib['hidden'],'1')
+            self.assertEqual(len(list(sheet.find("s:sheetData/s:row[@r='4']",tracker.NS))),10)
             self.assertFalse(sheet.findall('s:hyperlinks/s:hyperlink',tracker.NS))
 
     def test_numeric_and_iso_dates_sort_consistently(self):

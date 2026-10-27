@@ -1,6 +1,7 @@
 """Shared local application ledger. No SMTP, IMAP, or credential access."""
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from email.utils import getaddresses
 import hashlib
 import json
 import os
@@ -13,7 +14,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from xml.sax.saxutils import escape
 
-HEADERS = ["公司", "岗位", "工作地点", "投递时间", "投递 Agent", "当前进展", "下次跟进", "备注", "_record_id"]
+HEADERS = ["公司", "岗位", "工作地点", "投递时间", "投递 Agent", "收件邮箱", "当前进展", "下次跟进", "备注", "_record_id"]
 MANUAL = ("company", "position", "location", "progress", "follow_up", "notes")
 STATES = {"accepted": "已投递", "rejected": "投递失败", "uncertain": "发送待核实", "submitting": "发送待核实"}
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -153,6 +154,7 @@ def read_workbook_rows(path):
         source_column = headers.get("JD来源")
         notes_column = headers.get("备注", "I")
         id_column = headers.get("_record_id", "J")
+        recipient_column = headers.get("收件邮箱")
         relationships = {}
         rel_path = "xl/worksheets/_rels/sheet1.xml.rels"
         if rel_path in archive.namelist():
@@ -190,15 +192,33 @@ def read_workbook_rows(path):
                 continue
             # Keep stable semantic slots for both the old and new physical layouts.
             physical = cells
-            cells = {col: physical.get(col) for col in "ABCDEFG"}
+            semantic_headers = {"A": "公司", "B": "岗位", "C": "工作地点", "D": "投递时间",
+                                "E": "投递 Agent", "F": "当前进展", "G": "下次跟进"}
+            cells = {col: physical.get(headers.get(label, col)) for col, label in semantic_headers.items()}
             cells.update(H=physical.get(source_column) if source_column else None,
-                         I=physical.get(notes_column), J=physical.get(id_column))
+                         I=physical.get(notes_column), J=physical.get(id_column),
+                         K=physical.get(recipient_column) if recipient_column else None)
             if not cells.get("J"):
                 if int(row.attrib["r"]) < 5:
                     continue
-                cells["J"] = "manual_" + hashlib.sha256(json.dumps(cells, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:24]
+                identity = {key: value for key, value in cells.items() if key != "K"}
+                cells["J"] = "manual_" + hashlib.sha256(json.dumps(identity, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:24]
             result[str(cells["J"])] = cells
         return result
+
+
+def recipient_emails(events):
+    """Keep actual submission addresses in first-use order, without duplicates."""
+    addresses, seen = [], set()
+    for event in events:
+        value = event.get("recipient")
+        values = value if isinstance(value, list) else [value]
+        for _, address in getaddresses([v for v in values if isinstance(v, str) and v.strip()]):
+            address = address.strip()
+            if "@" in address and address.casefold() not in seen:
+                seen.add(address.casefold())
+                addresses.append(address)
+    return "\n".join(addresses)
 
 
 def aggregate(events):
@@ -219,6 +239,7 @@ def aggregate(events):
         rows.append({"id": identifier, "company": metadata.get("company") or "待确认",
                      "position": metadata.get("position") or "待确认", "location": metadata.get("location") or "待确认",
                      "time": base["time"], "agent": "、".join(sorted({e["agent"] for e in group})),
+                     "recipients": recipient_emails(group),
                      "progress": "已投递" if accepted else STATES.get(latest["status"], "发送待核实"),
                      "follow_up": None, "source": next((e["source"] for e in reversed(group) if e.get("source")), None),
                      "notes": notes})
@@ -287,7 +308,8 @@ def finalize_xlsx(path, rows, author="User"):
     data['_rels/.rels'] = package_rels.encode('utf-8')
     worksheet = data["xl/worksheets/sheet1.xml"].decode("utf-8")
     prefix = re.search(r'<([A-Za-z0-9]+):worksheet\b', worksheet).group(1) + ':'
-    pattern = r'<' + prefix + r'col\b(?=[^>]*\bmin="9")(?=[^>]*\bmax="9")[^>]*/>'
+    id_column_number = len(HEADERS)
+    pattern = r'<' + prefix + r'col\b(?=[^>]*\bmin="' + str(id_column_number) + r'")(?=[^>]*\bmax="' + str(id_column_number) + r'")[^>]*/>'
     def hide(match):
         text = match.group(0)
         return re.sub(r'hidden="[01]"', 'hidden="1"', text) if 'hidden=' in text else text[:-2] + ' hidden="1" />'
@@ -326,6 +348,7 @@ def sync(settings, render=False):
             rows.append({"id": identifier, "company": cells.get("A"), "position": cells.get("B"),
                          "location": cells.get("C"), "time": cells.get("D"), "agent": cells.get("E"),
                          "progress": cells.get("F"), "follow_up": cells.get("G"),
+                         "recipients": cells.get("K") or "",
                          "source": cells.get("H") or {"label": "待补充", "target": ""}, "notes": cells.get("I")})
         for row in rows:
             row.update(state["overrides"].get(row["id"], {}))
