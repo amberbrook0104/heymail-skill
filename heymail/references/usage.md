@@ -55,11 +55,11 @@ python -X utf8 "<skill-dir>/scripts/mail.py" prepare --draft "work/mail-draft.js
 
 邮件投递后的自动登记、手工刷新和台账排版都由 heymail 统一处理，不另建独立台账技能。字段、顺序和视觉细节以[台账定稿规范](tracker.md)为准。
 
-启用时，普通配置可增加 `tracker`：`root` 为共享台账目录，`node` 为Node可执行文件，`module_dir` 为包含 `@oai/artifact-tool` 的依赖目录。发信仍使用Python标准库。只配置 `{"root":"共享目录","backend":"python"}` 即可使用当前Python的openpyxl/Pillow导出（不需要Node和Codex）；原有node/module_dir配置继续兼容。backend可选auto/artifact/python，auto优先使用可用Artifact Tool，否则选择Python。
+启用自动登记只需配置 `tracker: {"root":"台账保存目录"}`。旧node、module_dir、backend字段可保留用于兼容，但不再用于导出，也不会调用其他Agent的运行环境。所有客户端通过同一份技能自带的Python标准库写入器工作。无需Node、Artifact Tool、openpyxl或Pillow。
 
 `application` 可包含 `id/company/position/location/jd_source/jd_text/notes`，所有值为字符串。原始JD截图或文件使用 `jd_source`；JD文字使用 `jd_text`。同一JD多联系人、重投、切换Agent时复用已存在的 `id`；可通过 `tracker-list --query 公司名` 查询。`--agent` 指实际调用客户端，省略时按安装路径识别。岗位元数据与Agent均纳入确认摘要。
 
-Python后备导出的可选依赖列表为 `scripts/requirements-tracker.txt`，先检查当前Python是否已有openpyxl和Pillow；缺少时再在用户允许的运行环境安装。WorkBuddy自带Python可用时直接复用，无需安装Codex。导出以随技能提供的空白模板为基础，保留品牌、状态下拉、冻结行、隐藏编号和最新进展文字栏。
+导出以随技能提供的空白模板为基础，使用Python标准库修改XLSX中的XML并保留其他文件部件，包括品牌图片、状态下拉、冻结行、隐藏编号和最新进展文字栏。无需安装任何第三方包。
 
 `tracker-sync` 只刷新台账，不发送邮件、不读取凭据。Excel打开导致无法覆盖时，投递事件仍保留，关闭Excel后再运行该命令。Excel仅显示公司、岗位、工作地点、投递时间、投递 Agent、收件邮箱、当前进展、最新进展和备注9列，并按投递时间倒序排列。手工修改的公司、岗位、地点、进展、最新进展和备注会保留，隐藏技术编号列请勿删除。JD材料保留在后台归档，不再显示来源列。
 

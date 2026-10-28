@@ -12,6 +12,7 @@ import subprocess
 import uuid
 import xml.etree.ElementTree as ET
 import zipfile
+import sys
 from xml.sax.saxutils import escape
 
 HEADERS = ["公司", "岗位", "工作地点", "投递时间", "投递 Agent", "收件邮箱", "当前进展", "最新进展", "备注", "_record_id"]
@@ -337,16 +338,20 @@ def finalize_xlsx(path, rows, author="User"):
             z.writestr(name, value)
 
 
-def sync(settings, render=False):
+def sync(settings, render=False, new_record=None):
     root = Path(settings["root"]).resolve()
     root.mkdir(parents=True, exist_ok=True)
-    workbook = root / "实习投递台账.xlsx"
+    workbook = Path(settings.get('workbook') or root / "实习投递台账.xlsx").resolve()
+    if workbook.parent != root or workbook.suffix.lower()!='.xlsx':
+        raise ValueError('workbook_must_be_xlsx_in_ledger_root')
     with sync_lock(root):
         state_path = root / ".state.json"
         state = read_json(state_path, {"overrides": {}, "last_export": {}, "manual_rows": {}})
+        events = [read_json(p) for p in (root / ".events").glob("*.json")]
+        event_ids={event['application_id'] for event in events}
         existing = read_workbook_rows(workbook)
         for identifier, cells in existing.items():
-            if identifier.startswith("manual_"):
+            if identifier.startswith("manual_") or identifier not in event_ids:
                 state["manual_rows"][identifier] = cells
             previous = state["last_export"].get(identifier, {})
             for field, col in (("company", "A"), ("position", "B"), ("location", "C"),
@@ -357,9 +362,29 @@ def sync(settings, render=False):
                 if field not in previous or value != previous[field]:
                     state["overrides"].setdefault(identifier, {})[field] = value
         atomic_json(state_path, state)
-        events = [read_json(p) for p in (root / ".events").glob("*.json")]
+        if new_record is not None:
+            permitted={'id','company','position','location','time','agent','recipients','progress','latest_progress','notes'}
+            if not isinstance(new_record,dict) or set(new_record)-permitted:
+                raise ValueError('invalid_ledger_record_fields')
+            if any(not isinstance(value,str) or len(value)>2000 for value in new_record.values()):
+                raise ValueError('ledger_record_values_must_be_short_strings')
+            if not new_record.get('company') or not new_record.get('position'):
+                raise ValueError('company_and_position_required')
+            identifier=new_record.get('id') or 'manual_'+uuid.uuid4().hex
+            if not re.fullmatch(r'manual_[A-Za-z0-9_-]{1,100}',identifier):
+                raise ValueError('standalone_record_id_must_start_with_manual_')
+            if identifier in existing or identifier in state['manual_rows']:
+                raise ValueError('record_id_already_exists')
+            timestamp=new_record.get('time') or datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None).isoformat(timespec='seconds')
+            if not time_sort_key(timestamp):raise ValueError('invalid_record_time')
+            state['manual_rows'][identifier]={'A':new_record['company'],'B':new_record['position'],
+                'C':new_record.get('location') or '待确认','D':timestamp,'E':new_record.get('agent') or '其他',
+                'F':new_record.get('progress') or '待确认','G':new_record.get('latest_progress'),
+                'H':None,'I':new_record.get('notes'),'J':identifier,'K':new_record.get('recipients')}
+            atomic_json(state_path,state)
         rows = aggregate(events)
         for identifier, cells in state["manual_rows"].items():
+            if identifier in event_ids:continue
             rows.append({"id": identifier, "company": cells.get("A"), "position": cells.get("B"),
                          "location": cells.get("C"), "time": cells.get("D"), "agent": cells.get("E"),
                          "progress": cells.get("F"), "follow_up": latest_progress_text(cells.get("G"), legacy_date=True),
@@ -372,21 +397,11 @@ def sync(settings, render=False):
         atomic_json(payload, {"rows": rows, "headers": HEADERS, "render": render})
         temporary = root / (".export-" + uuid.uuid4().hex + ".xlsx")
         try:
-            backend = settings.get('backend', 'auto')
-            artifact_available = bool(settings.get('node') and settings.get('module_dir') and Path(settings['node']).is_file() and (Path(settings['module_dir']) / '@oai/artifact-tool').is_dir())
-            if backend == 'artifact' or (backend == 'auto' and artifact_available):
-                command = [settings["node"], str(Path(__file__).with_name("tracker_export.mjs")),
-                           "--input", str(payload), "--output", str(temporary), "--modules", settings["module_dir"]]
-                result = subprocess.run(command, capture_output=True, timeout=90)
-                if result.returncode:
-                    raise RuntimeError("tracker_export_failed: " + result.stderr.decode("utf-8", errors="replace")[-1500:])
-                finalize_xlsx(temporary, rows, document_author(settings))
-            else:
-                from importlib.util import spec_from_file_location, module_from_spec
-                spec = spec_from_file_location('heymail_excel', Path(__file__).with_name('tracker_excel.py'))
-                exporter = module_from_spec(spec)
-                spec.loader.exec_module(exporter)
-                exporter.export(rows, temporary, document_author(settings))
+            from importlib.util import spec_from_file_location, module_from_spec
+            spec = spec_from_file_location('heymail_excel', Path(__file__).with_name('tracker_excel.py'))
+            exporter = module_from_spec(spec)
+            spec.loader.exec_module(exporter)
+            exporter.export(rows, temporary, document_author(settings))
             os.replace(temporary, workbook)
         finally:
             temporary.unlink(missing_ok=True)
@@ -410,7 +425,7 @@ def record_submission(config, manifest, receipt, receipt_path, script_path):
 
 
 def create_desktop_shortcut(settings, desktop=None):
-    workbook = Path(settings["root"]).resolve() / "实习投递台账.xlsx"
+    workbook = Path(settings.get('workbook') or Path(settings["root"]).resolve() / "实习投递台账.xlsx")
     if not workbook.is_file():
         raise FileNotFoundError("tracker_workbook_not_found_run_tracker_sync_first")
     if os.name != "nt":
@@ -423,3 +438,31 @@ def create_desktop_shortcut(settings, desktop=None):
     if result.returncode:
         raise RuntimeError("desktop_shortcut_creation_failed")
     return json.loads(result.stdout.decode("utf-8-sig"))
+
+
+def main():
+    import argparse
+    parser=argparse.ArgumentParser(description='Independent Excel ledger: no mailbox, credentials, Node or third-party packages.')
+    parser.add_argument('command',choices=['init','sync','add','list','shortcut'])
+    parser.add_argument('--workbook',type=Path,required=True)
+    parser.add_argument('--record',type=Path)
+    parser.add_argument('--agent',default='其他')
+    parser.add_argument('--author',default='User')
+    args=parser.parse_args();book=args.workbook.resolve()
+    settings={'root':str(book.parent),'workbook':str(book),'author':args.author}
+    if args.command=='add':
+        if args.record is None:parser.error('add requires --record')
+        record=read_json(args.record)
+        if not isinstance(record,dict):raise ValueError('record_must_be_object')
+        result=sync(settings,new_record={**record,'agent':args.agent})
+    elif args.command in ('sync','init'):result=sync(settings)
+    elif args.command=='shortcut':result=create_desktop_shortcut(settings)
+    else:result={'rows':read_workbook_rows(book)}
+    print(json.dumps({'ok':True,**result},ensure_ascii=False))
+
+
+if __name__=='__main__':
+    try:main()
+    except Exception as error:
+        print(json.dumps({'ok':False,'error_type':type(error).__name__,'detail':str(error)},ensure_ascii=False))
+        sys.exit(1)

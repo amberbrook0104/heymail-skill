@@ -153,9 +153,7 @@ class WorkflowTests(unittest.TestCase):
             vault.assert_not_called()
 
     def test_accepted_mock_send_creates_one_shared_ledger_event(self):
-        if not os.environ.get("HEYMAIL_TEST_NODE") or not os.environ.get("HEYMAIL_TEST_MODULE_DIR"):
-            self.skipTest("Set HEYMAIL_TEST_NODE and HEYMAIL_TEST_MODULE_DIR for the Excel integration check.")
-        settings={"node":os.environ["HEYMAIL_TEST_NODE"],"module_dir":os.environ["HEYMAIL_TEST_MODULE_DIR"]}
+        settings={}
         self.config["tracker"]={**settings,"root":str(self.root/"ledger")}
         self.job["application"]={"id":"test-fa","company":"测试公司","position":"FA实习生","location":"北京","jd_text":"合成测试JD"}
         self.draft.write_text(json.dumps(self.job,ensure_ascii=False),encoding="utf-8")

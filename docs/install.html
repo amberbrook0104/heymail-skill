@@ -1,8 +1,7 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="author" content="黄鑫杰"><title>heymail 完整图文教程</title><style>*{box-sizing:border-box}body{margin:0;background:#f7f1e6;color:#302b27;font:16px/1.85 'Microsoft YaHei',sans-serif}main{max-width:1000px;margin:36px auto;padding:48px;background:#fffdf7;border:1px solid #e2d5c1;border-radius:20px;box-shadow:0 12px 50px #4b31110b}h1{font-size:34px}h2{font-size:26px;margin-top:50px;border-bottom:2px solid #b9432e;padding-bottom:10px}h3{margin-top:30px}a{color:#a83b2d}img{max-width:100%;height:auto;border-radius:14px;display:block;margin:24px auto}blockquote{position:relative;margin:24px 0;padding:22px 24px;border-left:5px solid #b9432e;border-radius:8px;background:#fff1df}blockquote p{margin:5px 0;overflow-wrap:anywhere}pre{background:#302b27;color:#f9f2e6;padding:20px;border-radius:12px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}code{font-family:Consolas,monospace}table{border-collapse:collapse;width:100%;font-size:14px}th{background:#eee4d3}td,th{padding:12px;border-bottom:1px solid #e2d5c1;text-align:left}button{float:right;background:#b9432e;color:white;border:0;border-radius:6px;padding:6px 14px;cursor:pointer}li{margin:8px 0}@media(max-width:700px){main{padding:22px;margin:12px}h1{font-size:28px}table{display:block;overflow:auto}}</style><main><h1>heymail 安装、更新与投递全流程</h1>
-<p>Windows 10/11 · Codex / 豆包 / WorkBuddy / Claude Code · v1.4</p>
-<p><img src="../heymail/assets/guides/workflow-handdrawn.png" alt="从安装到投递的八步手绘演示"></p>
-<p>本页先介绍已有用户更新，再介绍首次安装。邮箱授权码教程、简历配置和 JD 投递演示都在下方。</p>
-<p><img src="../heymail/assets/guides/install-handdrawn.png" alt="GitHub下载、原地更新与首次安装图解"></p>
+<p>Windows 10/11 · Codex / 豆包 / WorkBuddy / Claude Code · v1.4.1</p>
+<p>每个Agent都能单独使用：任选Codex、豆包、WorkBuddy或Claude Code，只需本机Python 3.10+和Excel文件路径。无需搭配其他Agent，也不需要额外Excel库。</p>
+<p>更新、首次安装、授权码和JD投递都在本页，直接向下阅读。</p>
 <h2>1. 已有用户：原地更新</h2>
 <blockquote>
 <p>[!IMPORTANT]
@@ -11,26 +10,27 @@
 <p>把下面整个提示框复制到正在使用的 Agent：</p>
 <blockquote>
 <p>[!TIP]
-请从 <a href="https://github.com/amberbrook0104/heymail-skill">https://github.com/amberbrook0104/heymail-skill</a> 获取 v1.4 完整技能包，原地更新本客户端的 heymail。先查找实际旧安装目录并备份，避免装出第二份。保留邮箱、Windows 凭据、简历、历史回执、台账目录及人工字段，不重新索取授权码，也不发送测试邮件。更新后按新 SKILL.md 检查依赖、刷新原台账并核对桌面入口。投递 Agent 记录实际客户端名称。只处理本机资料，最后报告安装目录、版本和验证结果。其他客户端只在我明确要求时同步。</p>
+请从 <a href="https://github.com/amberbrook0104/heymail-skill">https://github.com/amberbrook0104/heymail-skill</a> 获取 v1.4.1 完整技能包，原地更新本客户端的 heymail。先查找实际旧安装目录并备份，避免装出第二份。保留邮箱、Windows 凭据、简历、历史回执、台账目录及人工字段，不重新索取授权码，也不发送测试邮件。更新后按新 SKILL.md 使用当前客户端的Python标准库写入器，刷新原台账并核对桌面入口。投递 Agent 记录实际客户端名称。只处理本机资料，最后报告安装目录、版本和验证结果。其他客户端只在我明确要求时同步。</p>
 </blockquote>
-<p>希望手动执行时，从<a href="https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4/heymail-v1.4.zip">完整安装包</a>解压，在包目录中选择一条：</p>
+<p>希望手动执行时，从<a href="https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4.1/heymail-v1.4.1.zip">完整安装包</a>解压，在包目录中选择一条：</p>
 <pre><code class="language-powershell">powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent codex -Replace
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent doubao -Replace
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent workbuddy -Replace
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent claude -Replace
 </code></pre>
 <p>Codex 同时发现新旧两个目录时会停止，需加 <code>-Destination &quot;实际使用的技能目录\heymail&quot;</code>。更新完成后跳至<a href="#5-%E6%97%A5%E5%B8%B8%E6%8A%95%E9%80%92%E4%BB%8E-jd-%E5%88%B0%E5%8F%B0%E8%B4%A6">日常投递演示</a>。</p>
+<p><img src="../heymail/assets/guides/install-handdrawn.png" alt="安装与更新图解"></p>
 <h2>2. 首次安装：从 GitHub 获取完整包</h2>
 <blockquote>
 <p>[!TIP]
-请安装 <a href="https://github.com/amberbrook0104/heymail-skill">https://github.com/amberbrook0104/heymail-skill</a> 的 v1.4 完整版 heymail，先检查本客户端是否已有安装或配置，避免重复安装。按实际客户端选择路径，完整保留 scripts、references、assets。读取 SKILL.md，先引导我在官方邮箱网页开启 SMTP 并生成授权码，再打开本机安全输入窗口；保存成功后只请我提供 PDF/DOCX 简历，最后再请我提供发件邮箱。只检查 SMTP 登录，不发测试邮件。配置台账时优先沿用已有共享目录，缺少时询问我保存位置。完成后报告安装目录和可用功能，再接着处理我的 JD。</p>
+请安装 <a href="https://github.com/amberbrook0104/heymail-skill">https://github.com/amberbrook0104/heymail-skill</a> 的 v1.4.1 完整版 heymail，先检查本客户端是否已有安装或配置，避免重复安装。按实际客户端选择路径，完整保留 scripts、references、assets。读取 SKILL.md，先引导我在官方邮箱网页开启 SMTP 并生成授权码，再打开本机安全输入窗口；保存成功后只请我提供 PDF/DOCX 简历，最后再请我提供发件邮箱。只检查 SMTP 登录，不发测试邮件。配置台账时优先沿用已有共享目录，缺少时询问我保存位置。完成后报告安装目录和可用功能，再接着处理我的 JD。</p>
 </blockquote>
 <h3>方式A：让 Agent 按上面的提示安装</h3>
 <p>完整包内包含技能、空白台账、图片和教程。请勿只复制一个 SKILL.md。</p>
 <h3>方式B：下载并运行安装器</h3>
 <ol>
-<li>打开 <a href="https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.4">GitHub v1.4 发布页</a>。</li>
-<li>下载 <code>heymail-v1.4.zip</code> 并完整解压。</li>
+<li>打开 <a href="https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.4.1">GitHub v1.4.1 发布页</a>。</li>
+<li>下载 <code>heymail-v1.4.1.zip</code> 并完整解压。</li>
 <li>在含 <code>install.ps1</code> 的文件夹打开 PowerShell，选择对应客户端执行：</li>
 </ol>
 <pre><code class="language-powershell">powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent workbuddy
@@ -71,7 +71,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent cla
 <pre><code class="language-powershell">powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-from-github.ps1 -Agent workbuddy
 # 原地更新时追加 -Replace
 </code></pre>
-<p>脚本获取 GitHub v1.4 Release 完整包，核对 GitHub 返回的 SHA-256 后调用安装器。安装成功后刷新技能列表或重新打开聊天。文件夹名和界面以当前客户端实际显示为准。</p>
+<p>脚本获取 GitHub v1.4.1 Release 完整包，核对 GitHub 返回的 SHA-256 后调用安装器。安装成功后刷新技能列表或重新打开聊天。文件夹名和界面以当前客户端实际显示为准。</p>
 <h2>3. 开启 SMTP 并获取授权码</h2>
 <p>授权码是邮箱为第三方客户端生成的密码，SMTP 是发送邮件所用的服务。请先登录自己的<a href="https://mail.163.com/">163邮箱</a>或<a href="https://mail.qq.com/">QQ邮箱</a>。</p>
 <blockquote>
@@ -129,7 +129,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent cla
 </tr>
 </tbody></table>
 <p>WorkBuddy 自带 Python 没有 Tkinter 时会打开独立终端隐藏输入。没看到窗口时，可完整解压后双击 <code>start-setup-console.cmd</code>；不要在 Agent 的工具输出区域粘贴授权码。</p>
-<p>台账可使用 Node + Artifact Tool，或 Python + openpyxl/Pillow。后者不依赖 Codex；依赖缺少时由 Agent 说明并协助配置，不应虚称已启用台账。详细配置见<a href="../heymail/references/usage.md">执行说明</a>。</p>
+<p>台账使用技能自带的Python标准库写入器，不需要Node、Artifact Tool、openpyxl、Pillow或其他Agent。每个客户端可使用自己的Python或系统Python；三者任选其一安装即可。多个客户端共用时，只需指向同一个Excel路径。</p>
+<p><img src="../heymail/assets/guides/workflow-handdrawn.png" alt="从安装到投递的八步手绘演示"></p>
 <h2>5. 日常投递：从 JD 到台账</h2>
 <p><img src="../heymail/assets/guides/jd-demo.svg" alt="演示对话：提交JD、核对预览、确认发送和查看台账"></p>
 <h3>第一步：把JD发给Agent</h3>
@@ -156,7 +157,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent cla
 <p>[!NOTE]
 “SMTP已接受”只表示邮箱服务器接受提交，不代表对方已收到或已读。Excel正在打开导致刷新失败时，先保留回执，关闭Excel后再刷新，不能因此重新发邮件。</p>
 </blockquote>
-<h2>6. 常见情况</h2>
+<h2>6. 各个Agent独立新增到同一Excel</h2>
+<blockquote>
+<p>[!TIP]
+使用你本机的heymail，把这条投递记录加入我指定的Excel。只使用本机Python标准库和技能自带模板，不查找Codex、其他Agent、Node或外部Excel库。无需发件邮箱配置，也不发送邮件。保留原有记录和我手填的最新进展。</p>
+</blockquote>
+<p>实际调用示例（路径替换为本机路径）：</p>
+<pre><code class="language-powershell">python -X utf8 &quot;&lt;skill-dir&gt;/scripts/tracker.py&quot; init --workbook &quot;D:/投递台账/实习投递台账.xlsx&quot;
+python -X utf8 &quot;&lt;skill-dir&gt;/scripts/tracker.py&quot; add --workbook &quot;D:/投递台账/实习投递台账.xlsx&quot; --record &quot;记录.json&quot; --agent WorkBuddy --author &quot;发件人姓名&quot;
+</code></pre>
+<p>记录.json示例（全部为演示数据）：</p>
+<pre><code class="language-json">{&quot;company&quot;:&quot;示例公司&quot;,&quot;position&quot;:&quot;研究实习生&quot;,&quot;location&quot;:&quot;北京&quot;,&quot;time&quot;:&quot;2026-10-28T10:30:00&quot;,&quot;recipients&quot;:&quot;hr@example.com&quot;,&quot;progress&quot;:&quot;待确认&quot;,&quot;latest_progress&quot;:&quot;已准备材料，等待核对&quot;,&quot;notes&quot;:&quot;演示记录&quot;}
+</code></pre>
+<p>邮件发送成功仍会自动登记；上面的命令也可单独维护Excel。只拿到现有Excel、没有旧回执目录时，已有行仍保留。每个台账使用单独目录；Excel打开导致写入失败时，关闭后运行sync，不能重发邮件。</p>
+<h2>7. 常见情况</h2>
 <ul>
 <li>已安装但看不到技能：刷新技能列表或重新打开聊天，核对是否选中了正确工作目录。</li>
 <li>新电脑：首次配置自己的邮箱与简历，不复制他人的配置、凭据或个人台账。</li>
@@ -164,4 +178,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent cla
 <li>授权码失效：在官方网页重新生成，通过本机安全输入流程更新，不发到聊天。</li>
 <li>源码与品牌素材在GitHub公开；私人简历、回执、配置、原始截图和真实台账不会进入发布包。</li>
 </ul>
-</main><script>for(const box of document.querySelectorAll('blockquote')){if(box.innerText.includes('[!TIP]')){const b=document.createElement('button');b.textContent='复制提示词';b.onclick=async()=>{const value=box.innerText.replace('复制提示词','').replace('[!TIP]','').trim();try{await navigator.clipboard.writeText(value);b.textContent='已复制'}catch{const t=document.createElement('textarea');t.value=value;document.body.append(t);t.select();document.execCommand('copy');t.remove();b.textContent='已复制'}};box.prepend(b)}}</script></html>
+</main><script>for(const box of document.querySelectorAll('blockquote')){if(box.innerText.includes('[!TIP]')){const b=document.createElement('button');b.textContent='复制提示词';b.onclick=async()=>{const value=[...box.querySelectorAll('p')].map(p=>p.textContent).join('\n').replace('[!TIP]','').trim();try{await navigator.clipboard.writeText(value);b.textContent='已复制'}catch{const t=document.createElement('textarea');t.value=value;document.body.append(t);t.select();document.execCommand('copy');t.remove();b.textContent='已复制'}};box.prepend(b)}}</script></html>

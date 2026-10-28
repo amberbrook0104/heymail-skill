@@ -10,8 +10,8 @@ if not errorlevel 1 (
   set "HEYMAIL_PYTHON=python.exe"
   exit /b 0
 )
-if exist "%USERPROFILE%\.workbuddy\binaries\python\envs\default\Scripts\python.exe" (
-  set HEYMAIL_PYTHON="%USERPROFILE%\.workbuddy\binaries\python\envs\default\Scripts\python.exe"
+if exist "%~dp0..\..\..\binaries\python\envs\default\Scripts\python.exe" (
+  set HEYMAIL_PYTHON="%~dp0..\..\..\binaries\python\envs\default\Scripts\python.exe"
   exit /b 0
 )
 echo Python 3.10+ is required. Ask your agent to locate its Python runtime.

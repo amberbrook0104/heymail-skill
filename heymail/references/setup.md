@@ -2,7 +2,7 @@
 
 注册/登录邮箱、验证码、扫码和短信验证由本人在官方网页完成。Agent 只提供操作指引和本机输入窗口，不代填身份验证，不获取网页登录密码。
 
-完整入门演示见[统一教程](https://github.com/amberbrook0104/heymail-skill/blob/main/docs/install.md)，包括脱敏163/QQ截图和从JD到发送的演示。
+完整入门演示见[统一教程](https://github.com/amberbrook0104/heymail-skill)，包括脱敏163/QQ截图和从JD到发送的演示。
 
 ## 1. 注册或登录
 

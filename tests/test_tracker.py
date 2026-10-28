@@ -98,7 +98,6 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(row['position'],'待确认')
         self.assertEqual(row['source']['label'],'邮件记录（JD待补）')
 
-    @unittest.skipUnless(RUNTIME,'Set HEYMAIL_TEST_NODE and HEYMAIL_TEST_MODULE_DIR for Excel integration.')
     def test_refresh_preserves_manual_edits_after_row_sort(self):
         older={**self.manifest,'application':{**self.manifest['application'],'id':'older'}}
         tracker.record_event(self.settings,older,self.receipt,self.root/'old-receipt.json')
@@ -162,29 +161,23 @@ class TrackerTests(unittest.TestCase):
         self.assertIsInstance(ordered[0],float)
         self.assertEqual(ordered[1],values[0])
 
-    def test_python_backend_preserves_edits_and_native_features(self):
-        from openpyxl import load_workbook
+    def test_stdlib_backend_preserves_native_features(self):
         settings={'root':str(self.root),'backend':'python','author':'Synthetic Test'}
         tracker.record_event(settings,self.manifest,self.receipt,self.root/'receipt.json',agent='WorkBuddy')
         tracker.sync(settings)
         output=self.root/'实习投递台账.xlsx'
-        book=load_workbook(output);sheet=book['投递台账']
-        self.assertEqual(sheet['E5'].value,'WorkBuddy')
-        self.assertEqual(sheet['F5'].value,'hr@example.com')
-        self.assertEqual(sheet.freeze_panes,'A5')
-        self.assertTrue(sheet.column_dimensions['J'].hidden)
-        self.assertEqual(len(sheet._images),2)
-        sheet['G5']='面试中';sheet['H5']='HR已回复，等待面试';sheet['I5']='自填备注'
-        book.save(output)
-        tracker.sync(settings)
         cells=tracker.read_workbook_rows(output)['test-job']
-        self.assertEqual(cells['F'],'面试中')
-        self.assertEqual(cells['G'],'HR已回复，等待面试')
-        self.assertEqual(cells['I'],'自填备注')
-        book=load_workbook(output);sheet=book['投递台账']
-        self.assertEqual(sheet['H5'].number_format,'@')
-        self.assertEqual(sheet.tables['ApplicationsTable'].ref,'A4:J5')
-        self.assertEqual(book.properties.creator,'Synthetic Test')
+        self.assertEqual(cells['E'],'WorkBuddy')
+        self.assertEqual(cells['K'],'hr@example.com')
+        with zipfile.ZipFile(output) as archive:
+            sheet=ET.fromstring(archive.read('xl/worksheets/sheet1.xml'))
+            self.assertEqual(sheet.find('s:sheetViews/s:sheetView/s:pane',tracker.NS).get('topLeftCell'),'A5')
+            self.assertEqual(sheet.find('s:cols/s:col[@min="10"]',tracker.NS).get('hidden'),'1')
+            self.assertEqual(len([n for n in archive.namelist() if n.startswith('xl/media/')]),2)
+            table=ET.fromstring(archive.read('xl/tables/table1.xml'))
+            self.assertEqual(table.get('ref'),'A4:J5')
+            core=ET.fromstring(archive.read('docProps/core.xml'))
+            self.assertEqual(core.find('{http://purl.org/dc/elements/1.1/}creator').text,'Synthetic Test')
 
     @unittest.skipUnless(os.name=='nt','Windows shortcut feature.')
     def test_shortcut_reuses_same_target_and_preserves_conflicting_shortcut(self):
