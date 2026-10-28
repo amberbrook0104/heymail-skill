@@ -194,6 +194,11 @@ def main():
     if sys.platform != "win32":
         raise core.MailError("windows_local_desktop_required")
     if args.launch:
+        if not args.console:
+            try:
+                import tkinter
+            except ImportError:
+                args.console = True
         return launch_input(args)
     session = InputSession(args)
     try:

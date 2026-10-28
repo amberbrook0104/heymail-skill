@@ -1,10 +1,7 @@
 @echo off
-where py.exe >nul 2>nul
-if not errorlevel 1 (
-  py.exe -3 -X utf8 "%~dp0credential_input.py"
-) else (
-  python.exe -X utf8 "%~dp0credential_input.py"
-)
+call "%~dp0find-python.cmd"
+if errorlevel 1 exit /b 1
+%HEYMAIL_PYTHON% -X utf8 "%~dp0credential_input.py" --launch
 if errorlevel 1 (
   echo.
   echo If no input window appeared, double-click start-setup-console.cmd.

@@ -40,6 +40,8 @@ def agent_name(script_path):
     path = str(script_path).lower()
     if "doubao" in path:
         return "豆包"
+    if "workbuddy" in path:
+        return "WorkBuddy"
     if ".codex" in path:
         return "Codex"
     return "其他"
@@ -369,13 +371,22 @@ def sync(settings, render=False):
         payload = root / ".export.json"
         atomic_json(payload, {"rows": rows, "headers": HEADERS, "render": render})
         temporary = root / (".export-" + uuid.uuid4().hex + ".xlsx")
-        command = [settings["node"], str(Path(__file__).with_name("tracker_export.mjs")),
-                   "--input", str(payload), "--output", str(temporary), "--modules", settings["module_dir"]]
         try:
-            result = subprocess.run(command, capture_output=True, timeout=90)
-            if result.returncode:
-                raise RuntimeError("tracker_export_failed: " + result.stderr.decode("utf-8", errors="replace")[-1500:])
-            finalize_xlsx(temporary, rows, document_author(settings))
+            backend = settings.get('backend', 'auto')
+            artifact_available = bool(settings.get('node') and settings.get('module_dir') and Path(settings['node']).is_file() and (Path(settings['module_dir']) / '@oai/artifact-tool').is_dir())
+            if backend == 'artifact' or (backend == 'auto' and artifact_available):
+                command = [settings["node"], str(Path(__file__).with_name("tracker_export.mjs")),
+                           "--input", str(payload), "--output", str(temporary), "--modules", settings["module_dir"]]
+                result = subprocess.run(command, capture_output=True, timeout=90)
+                if result.returncode:
+                    raise RuntimeError("tracker_export_failed: " + result.stderr.decode("utf-8", errors="replace")[-1500:])
+                finalize_xlsx(temporary, rows, document_author(settings))
+            else:
+                from importlib.util import spec_from_file_location, module_from_spec
+                spec = spec_from_file_location('heymail_excel', Path(__file__).with_name('tracker_excel.py'))
+                exporter = module_from_spec(spec)
+                spec.loader.exec_module(exporter)
+                exporter.export(rows, temporary, document_author(settings))
             os.replace(temporary, workbook)
         finally:
             temporary.unlink(missing_ok=True)

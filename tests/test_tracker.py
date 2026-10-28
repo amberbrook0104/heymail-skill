@@ -39,6 +39,7 @@ class TrackerTests(unittest.TestCase):
                       'time':'2026-10-27T01:00:00+00:00','status':'accepted'}
 
     def test_agent_detection_and_beijing_time(self):
+        self.assertEqual(tracker.agent_name(r'C:\Users\test\.workbuddy\skills\heymail\scripts\mail.py'),'WorkBuddy')
         self.assertEqual(tracker.agent_name(r'C:\Users\test\.codex\skills\heymail\scripts\mail.py'),'Codex')
         self.assertEqual(tracker.agent_name(r'C:\Users\test\Doubao\skills\mail.py'),'豆包')
         self.assertEqual(tracker.local_time('2026-10-27T16:30:00+00:00'),'2026-10-28T00:30:00')
@@ -160,6 +161,30 @@ class TrackerTests(unittest.TestCase):
         ordered=sorted(values,key=tracker.time_sort_key,reverse=True)
         self.assertIsInstance(ordered[0],float)
         self.assertEqual(ordered[1],values[0])
+
+    def test_python_backend_preserves_edits_and_native_features(self):
+        from openpyxl import load_workbook
+        settings={'root':str(self.root),'backend':'python','author':'Synthetic Test'}
+        tracker.record_event(settings,self.manifest,self.receipt,self.root/'receipt.json',agent='WorkBuddy')
+        tracker.sync(settings)
+        output=self.root/'实习投递台账.xlsx'
+        book=load_workbook(output);sheet=book['投递台账']
+        self.assertEqual(sheet['E5'].value,'WorkBuddy')
+        self.assertEqual(sheet['F5'].value,'hr@example.com')
+        self.assertEqual(sheet.freeze_panes,'A5')
+        self.assertTrue(sheet.column_dimensions['J'].hidden)
+        self.assertEqual(len(sheet._images),2)
+        sheet['G5']='面试中';sheet['H5']='HR已回复，等待面试';sheet['I5']='自填备注'
+        book.save(output)
+        tracker.sync(settings)
+        cells=tracker.read_workbook_rows(output)['test-job']
+        self.assertEqual(cells['F'],'面试中')
+        self.assertEqual(cells['G'],'HR已回复，等待面试')
+        self.assertEqual(cells['I'],'自填备注')
+        book=load_workbook(output);sheet=book['投递台账']
+        self.assertEqual(sheet['H5'].number_format,'@')
+        self.assertEqual(sheet.tables['ApplicationsTable'].ref,'A4:J5')
+        self.assertEqual(book.properties.creator,'Synthetic Test')
 
     @unittest.skipUnless(os.name=='nt','Windows shortcut feature.')
     def test_shortcut_reuses_same_target_and_preserves_conflicting_shortcut(self):

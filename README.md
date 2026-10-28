@@ -1,21 +1,22 @@
 # heymail
 
-当前版本：**[v1.3](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.3)** · [下载安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.3/heymail-v1.3.zip)
+当前版本：**[v1.4](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.4)** · [下载安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4/heymail-v1.4.zip)
 
 上传JD，预览求职邮件；核对后单独回复「发送」，投递并登记到本机Excel台账。
 
-**[下载空白台账模板](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.3/application-ledger.xlsx)** · [仓库内模板](heymail/assets/templates/application-ledger.xlsx)。模板包含9列、社科大标识、紧凑行高、进展下拉和最新进展文字栏，不含任何个人投递记录。完整安装包也包含这份模板。自动登记时使用`tracker-sync`生成并更新实时台账；已有用户不要用空白模板覆盖自己的台账。
+**[下载空白台账模板](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4/application-ledger.xlsx)** · [仓库内模板](heymail/assets/templates/application-ledger.xlsx)。模板包含9列、社科大标识、紧凑行高、进展下拉和最新进展文字栏，不含任何个人投递记录。完整安装包也包含这份模板。自动登记时使用`tracker-sync`生成并更新实时台账；已有用户不要用空白模板覆盖自己的台账。
 
-## 选择入口
+## 更新与安装
 
-| 你的情况 | 指引 | 内容 |
-|---|---|---|
-| 第一次下载、还没配置 | **[首次安装](docs/first-install.md)** | 安装命令、完整可复制提示词、首次配置顺序 |
-| 已安装旧版、已有账号和记录 | **[已有用户更新](docs/update.md)** | 原地更新命令、完整可复制提示词、资料保留与刷新 |
+> [!TIP]
+> **[打开安装、授权码与JD投递全流程教程](docs/install.md)**
+> 先看已有用户更新，再看首次安装；163/QQ截图已脱敏，含手绘流程和完整示例。
 
-## v1.3 更新
+![全流程手绘演示](heymail/assets/guides/workflow-handdrawn.png)
 
-- 同一个 heymail 同时负责邮件投递和共享Excel台账，Codex、豆包可共用一份记录。
+## v1.4 更新
+
+- 同一个 heymail 同时负责邮件投递和共享Excel台账，Codex、豆包、WorkBuddy可共用一份记录。
 - 台账只显示9列：公司、岗位、工作地点、投递时间、投递 Agent、收件邮箱、当前进展、最新进展、备注。时间按北京时间从新到旧排列。
 - 收件邮箱从实际投递事件提取，多位联系人去重后分行显示；旧8列表自动升级并保留人工字段。
 - 同一JD多联系人或补投合并一行；进展、最新进展、备注及其他人工修订刷新后保留。
@@ -28,8 +29,8 @@
 
 - 本机 Windows 10/11，Python 3.10+；发件邮箱支持 `@163.com` 和 `@qq.com`，授权码存入 Windows 凭据管理器。
 - 发信使用Python标准库；首次安全输入优先使用Tkinter，无图形环境时使用本机终端隐藏输入。
-- **Excel台账是可选能力**：需要本机可用的Node.js和`@oai/artifact-tool`运行时。支持提供该运行时的Agent环境；Codex可通过工作区依赖定位工具查找。安装器不会从npm下载私有包，也不要求模型API密钥。
-- 如果当前环境没有Excel生成依赖，先使用邮件投递功能；Agent应说明台账尚未配置，不能把安装成功说成台账已启用。豆包可复用同机已验证可用的运行时及共享目录。
+- **Excel台账是可选能力**：支持Node.js和`@oai/artifact-tool`，也支持Python的openpyxl/Pillow后备导出。支持提供该运行时的Agent环境；Codex可通过工作区依赖定位工具查找。安装器不会从npm下载私有包，也不要求模型API密钥。
+- Python后备依赖见 `requirements-tracker.txt`。WorkBuddy不要求安装Codex。若两种Excel生成依赖都不可用，先使用邮件投递功能；Agent应说明台账尚未配置，不能把安装成功说成台账已启用。豆包可复用同机已验证可用的运行时及共享目录。
 - 用Excel或兼容软件查看生成的`.xlsx`。xlwings不是本版台账的必需依赖。
 
 ## 安装与调用
@@ -41,13 +42,14 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent codex
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent doubao
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent claude
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent workbuddy
 ```
 
 Codex新安装默认放入`%USERPROFILE%\.agents\skills\heymail`；如果已有`.codex\skills\heymail`旧安装，会原地沿用。两处都存在时需用`-Destination`明确指定，避免重复安装。豆包默认目标为Default配置下的`.user_skills\heymail`；自定义安装位置同样用`-Destination`指定。[Codex本地技能目录说明](https://learn.chatgpt.com/docs/build-skills)
 
-升级加`-Replace`。安装器先备份旧技能，只替换技能文件，不改邮箱配置、凭据、简历或台账。详细步骤与可复制提示词分别见上方两个入口。
+升级加`-Replace`。安装器先备份旧技能，只替换技能文件，不改邮箱配置、凭据、简历或台账。详细步骤与可复制提示词见上方统一教程。
 
-Codex可调用`$heymail`或在`/skills`中选择；豆包可要求使用已安装的heymail技能。Claude Code使用`/heymail`。客户端需具备本地文件读取、图片理解和命令执行能力；安装技能不等于给所有客户端注册原生斜杠命令。
+Codex可调用`$heymail`或在`/skills`中选择；豆包可要求使用已安装的heymail技能。WorkBuddy可导入 `heymail-workbuddy.zip` 并在技能列表启用，默认目录为 `%USERPROFILE%\.workbuddy\skills\heymail`。Claude Code使用`/heymail`。客户端需具备本地文件读取、图片理解和命令执行能力；安装技能不等于给所有客户端注册原生斜杠命令。
 
 ## 首次配置顺序
 

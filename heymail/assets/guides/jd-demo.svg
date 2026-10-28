@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1060" viewBox="0 0 1440 1060">
+<rect width="1440" height="1060" fill="#fcf6e9"/>
+<style>text{font-family:'Microsoft YaHei','Noto Sans CJK SC',sans-serif;fill:#302b27}.title{font-size:40px;font-weight:700}.head{font-size:27px;font-weight:700}.body{font-size:21px}.small{font-size:18px;fill:#75695f}.card{fill:#fffdf8;stroke:#8b7967;stroke-width:2.5;stroke-linejoin:round}.red{fill:#b9432e}.line{fill:none;stroke:#bd4a35;stroke-width:4;stroke-linecap:round}</style>
+<text x="64" y="70" class="title">heymail · 把一份 JD 变成可核对的投递</text>
+<text x="64" y="108" class="small">演示对话 / 示例大学、示例公司及 example.com 均为虚构，不用于真实投递</text>
+<path d="M62 132 Q700 138 1370 130" class="line"/>
+<path d="M61 160 L691 163 688 545 64 541Z" class="card"/>
+<text x="90" y="206" class="head">① 你：上传 JD 截图或粘贴文字</text>
+<rect x="94" y="235" width="553" height="211" rx="16" fill="#f3efe5"/>
+<text x="115" y="274" class="body">示例公司 · 研究实习生</text>
+<text x="115" y="317" class="body">地点：北京　每周4天</text>
+<text x="115" y="360" class="body">职责：行业资料整理、数据分析</text>
+<text x="115" y="403" class="body">演示邮箱：hr@example.com</text>
+<text x="94" y="485" class="body">“使用 heymail 准备申请，先给我预览。”</text>
+<text x="94" y="520" class="small">只需提供 JD；沿用已配置的简历和发件邮箱</text>
+<path d="M744 162 L1376 158 1373 544 745 547Z" class="card"/>
+<text x="773" y="206" class="head">② Agent：给出完整邮件预览</text>
+<text x="774" y="259" class="body">收件人：hr@example.com</text>
+<text x="774" y="300" class="body">主题：应聘研究实习生-示例同学-示例大学</text>
+<text x="774" y="344" class="body">正文：您好，我是示例大学在读学生，</text>
+<text x="774" y="378" class="body">有行业资料整理和数据分析实践，</text>
+<text x="774" y="412" class="body">希望申请该岗位。烦请您审阅附件简历。</text>
+<text x="774" y="458" class="small">附件：与主题同名的 PDF 副本，原件内容不变</text>
+<text x="774" y="513" class="body red">逐项核对：地址 / 标题 / 正文 / 所有附件</text>
+<path d="M63 578 L691 581 687 943 65 941Z" class="card"/>
+<text x="94" y="626" class="head">③ 你：下一条消息单独回复</text>
+<rect x="210" y="675" width="280" height="95" rx="18" fill="#b9432e"/>
+<text x="304" y="736" font-size="40" fill="white" style="fill:white">发送</text>
+<text x="94" y="825" class="body">核对确认后才会向邮箱服务器提交</text>
+<text x="94" y="867" class="small">如果改稿，先看新版预览，再回复新的“发送”</text>
+<text x="94" y="907" class="small">示例演示不执行 SMTP，也不会发送测试邮件</text>
+<path d="M745 581 L1376 577 1373 942 746 946Z" class="card"/>
+<text x="774" y="626" class="head">④ Agent：保存回执并登记台账</text>
+<rect x="774" y="665" width="558" height="118" rx="12" fill="#eaf0e0"/>
+<text x="794" y="704" class="body">公司：示例公司　　当前进展：已投递</text>
+<text x="794" y="746" class="body">收件邮箱：hr@example.com　Agent：WorkBuddy</text>
+<text x="774" y="831" class="body">在桌面“实习投递台账”查看实时记录</text>
+<text x="774" y="873" class="body">最新进展可填：“HR已回复，等待面试”</text>
+<text x="774" y="914" class="small">台账刷新失败时先关 Excel，再刷新，不重发邮件</text>
+<text x="64" y="1012" class="head red">SMTP 已接受 ≠ 已送达 / 已读</text>
+</svg>

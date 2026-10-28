@@ -98,8 +98,10 @@ def validate_config(value):
         raise MailError("invalid_applicant_profile")
     tracker = value.get("tracker")
     if tracker is not None:
-        if not isinstance(tracker, dict) or set(tracker) != {"root", "node", "module_dir"}:
+        if not isinstance(tracker, dict) or 'root' not in tracker or set(tracker) - {"root", "node", "module_dir", "backend"}:
             raise MailError("invalid_tracker_settings")
+        if tracker.get('backend', 'auto') not in {'auto','artifact','python'}:
+            raise MailError('invalid_tracker_backend')
         if not all(isinstance(v, str) and v.strip() and "\n" not in v and "\r" not in v
                    for v in tracker.values()):
             raise MailError("invalid_tracker_settings")

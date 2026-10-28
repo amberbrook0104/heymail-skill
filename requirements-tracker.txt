@@ -1,0 +1,2 @@
+# Optional portable Excel backend; mail sending needs only Python standard library.
+-r heymail/scripts/requirements-tracker.txt

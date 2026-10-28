@@ -1,13 +1,17 @@
 ---
 name: heymail
-description: "用网易163或QQ邮箱准备、预览并确认投递实习申请，同时维护Codex和豆包共享的Excel投递台账。支持JD截图或文字、简历与课题附件、发送回执登记、台账刷新及社科大风格排版。"
+description: "用网易163或QQ邮箱准备、预览并确认投递实习申请，同时维护Codex、豆包、WorkBuddy共享的Excel投递台账。支持JD截图或文字、简历与课题附件、发送回执登记、台账刷新及社科大风格排版。"
 metadata:
-  version: "1.3"
+  version: "1.4"
 ---
 
 # heymail
 
 目标交互：首次完成邮箱与简历配置；以后上传JD、核对预览并输入“发送”，投递后自动登记到共享台账。邮件投递和台账维护均属于本技能。
+
+## 安装和入门图解
+
+用户安装、更新或询问完整操作流程时，读取[统一图文教程](https://github.com/amberbrook0104/heymail-skill/blob/main/docs/install.md)。WorkBuddy使用本机Python；无Tkinter时`credential_input.py --launch`自动打开独立终端隐藏输入。投递使用`--agent WorkBuddy`。台账可只配置root和backend=python，通过openpyxl/Pillow导出，不依赖Codex。
 
 ## 启动和配置
 
@@ -30,7 +34,7 @@ metadata:
 
 ## JD → 邮件预览
 
-已配置共享台账时，草稿增加 `application`：公司 `company`、岗位 `position`、工作地点 `location`（具体城市或“远程”）、原始JD文件 `jd_source` 或文字 `jd_text`。信息不明确时留空，不按邮箱域名猜公司或按用户居住地猜工作地点。同一JD多联系人、补投或跨Agent投递时先用 `tracker-list --query 公司名` 查找并复用同一个 `application.id`；不同JD不要因公司和岗位同名而强行合并。准备时用 `--agent Codex` 或 `--agent 豆包` 标明实际投递客户端。
+已配置共享台账时，草稿增加 `application`：公司 `company`、岗位 `position`、工作地点 `location`（具体城市或“远程”）、原始JD文件 `jd_source` 或文字 `jd_text`。信息不明确时留空，不按邮箱域名猜公司或按用户居住地猜工作地点。同一JD多联系人、补投或跨Agent投递时先用 `tracker-list --query 公司名` 查找并复用同一个 `application.id`；不同JD不要因公司和岗位同名而强行合并。准备时用 `--agent Codex`、`--agent 豆包` 或 `--agent WorkBuddy` 标明实际投递客户端。
 
 1. 直接阅读用户上传的 JD 图片或文字。提取公司、岗位、职责、硬条件、唯一投递邮箱、主题/附件命名规则及需回答的事项。邮箱或关键字符模糊时仅问模糊部分；多岗位、多邮箱目标不明时不能猜选或群发。用户在聊天里指定的测试邮箱覆盖 JD 邮箱，只作用于其指定范围。
 2. 读取本机配置指定的最新简历原件，选择与岗位最相关的1至2项真实经历。不把 JD 要求改写成已具备的技能，不将“参与”提升为“主导”、备考提升为通过，也不虚构时间、证书或业绩。只改附件副本名称，不改附件内容。用户明确要求附加课题或作品时，作为独立附件加入。

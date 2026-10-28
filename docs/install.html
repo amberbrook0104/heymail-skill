@@ -1,0 +1,167 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="author" content="黄鑫杰"><title>heymail 完整图文教程</title><style>*{box-sizing:border-box}body{margin:0;background:#f7f1e6;color:#302b27;font:16px/1.85 'Microsoft YaHei',sans-serif}main{max-width:1000px;margin:36px auto;padding:48px;background:#fffdf7;border:1px solid #e2d5c1;border-radius:20px;box-shadow:0 12px 50px #4b31110b}h1{font-size:34px}h2{font-size:26px;margin-top:50px;border-bottom:2px solid #b9432e;padding-bottom:10px}h3{margin-top:30px}a{color:#a83b2d}img{max-width:100%;height:auto;border-radius:14px;display:block;margin:24px auto}blockquote{position:relative;margin:24px 0;padding:22px 24px;border-left:5px solid #b9432e;border-radius:8px;background:#fff1df}blockquote p{margin:5px 0;overflow-wrap:anywhere}pre{background:#302b27;color:#f9f2e6;padding:20px;border-radius:12px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}code{font-family:Consolas,monospace}table{border-collapse:collapse;width:100%;font-size:14px}th{background:#eee4d3}td,th{padding:12px;border-bottom:1px solid #e2d5c1;text-align:left}button{float:right;background:#b9432e;color:white;border:0;border-radius:6px;padding:6px 14px;cursor:pointer}li{margin:8px 0}@media(max-width:700px){main{padding:22px;margin:12px}h1{font-size:28px}table{display:block;overflow:auto}}</style><main><h1>heymail 安装、更新与投递全流程</h1>
+<p>Windows 10/11 · Codex / 豆包 / WorkBuddy / Claude Code · v1.4</p>
+<p><img src="../heymail/assets/guides/workflow-handdrawn.png" alt="从安装到投递的八步手绘演示"></p>
+<p>本页先介绍已有用户更新，再介绍首次安装。邮箱授权码教程、简历配置和 JD 投递演示都在下方。</p>
+<p><img src="../heymail/assets/guides/install-handdrawn.png" alt="GitHub下载、原地更新与首次安装图解"></p>
+<h2>1. 已有用户：原地更新</h2>
+<blockquote>
+<p>[!IMPORTANT]
+更新会先备份旧技能。保留邮箱配置、Windows 凭据、默认简历、共享台账和人工填写的最新进展。先保存并关闭 Excel。</p>
+</blockquote>
+<p>把下面整个提示框复制到正在使用的 Agent：</p>
+<blockquote>
+<p>[!TIP]
+请从 <a href="https://github.com/amberbrook0104/heymail-skill">https://github.com/amberbrook0104/heymail-skill</a> 获取 v1.4 完整技能包，原地更新本客户端的 heymail。先查找实际旧安装目录并备份，避免装出第二份。保留邮箱、Windows 凭据、简历、历史回执、台账目录及人工字段，不重新索取授权码，也不发送测试邮件。更新后按新 SKILL.md 检查依赖、刷新原台账并核对桌面入口。投递 Agent 记录实际客户端名称。只处理本机资料，最后报告安装目录、版本和验证结果。其他客户端只在我明确要求时同步。</p>
+</blockquote>
+<p>希望手动执行时，从<a href="https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4/heymail-v1.4.zip">完整安装包</a>解压，在包目录中选择一条：</p>
+<pre><code class="language-powershell">powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent codex -Replace
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent doubao -Replace
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent workbuddy -Replace
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent claude -Replace
+</code></pre>
+<p>Codex 同时发现新旧两个目录时会停止，需加 <code>-Destination &quot;实际使用的技能目录\heymail&quot;</code>。更新完成后跳至<a href="#5-%E6%97%A5%E5%B8%B8%E6%8A%95%E9%80%92%E4%BB%8E-jd-%E5%88%B0%E5%8F%B0%E8%B4%A6">日常投递演示</a>。</p>
+<h2>2. 首次安装：从 GitHub 获取完整包</h2>
+<blockquote>
+<p>[!TIP]
+请安装 <a href="https://github.com/amberbrook0104/heymail-skill">https://github.com/amberbrook0104/heymail-skill</a> 的 v1.4 完整版 heymail，先检查本客户端是否已有安装或配置，避免重复安装。按实际客户端选择路径，完整保留 scripts、references、assets。读取 SKILL.md，先引导我在官方邮箱网页开启 SMTP 并生成授权码，再打开本机安全输入窗口；保存成功后只请我提供 PDF/DOCX 简历，最后再请我提供发件邮箱。只检查 SMTP 登录，不发测试邮件。配置台账时优先沿用已有共享目录，缺少时询问我保存位置。完成后报告安装目录和可用功能，再接着处理我的 JD。</p>
+</blockquote>
+<h3>方式A：让 Agent 按上面的提示安装</h3>
+<p>完整包内包含技能、空白台账、图片和教程。请勿只复制一个 SKILL.md。</p>
+<h3>方式B：下载并运行安装器</h3>
+<ol>
+<li>打开 <a href="https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.4">GitHub v1.4 发布页</a>。</li>
+<li>下载 <code>heymail-v1.4.zip</code> 并完整解压。</li>
+<li>在含 <code>install.ps1</code> 的文件夹打开 PowerShell，选择对应客户端执行：</li>
+</ol>
+<pre><code class="language-powershell">powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent workbuddy
+# 其他客户端把 workbuddy 换成 codex、doubao 或 claude
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>客户端</th>
+<th>默认目录</th>
+<th>调用方法</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>WorkBuddy</td>
+<td><code>%USERPROFILE%\.workbuddy\skills\heymail</code></td>
+<td>在技能列表启用 heymail，再说“使用 heymail”</td>
+</tr>
+<tr>
+<td>Codex</td>
+<td><code>%USERPROFILE%\.agents\skills\heymail</code>；单一旧安装沿用旧位置</td>
+<td><code>$heymail</code> 或在技能列表选择</td>
+</tr>
+<tr>
+<td>豆包</td>
+<td>用户目录下 Default 配置的 <code>.user_skills\heymail</code></td>
+<td>要求使用已安装的 heymail</td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td><code>%USERPROFILE%\.claude\skills\heymail</code></td>
+<td><code>/heymail</code></td>
+</tr>
+</tbody></table>
+<p>WorkBuddy 也可在“技能 → 添加技能 → 上传技能”中导入发布页的 <code>heymail-workbuddy.zip</code>。这个包的根目录直接包含 SKILL.md，不使用完整仓库 ZIP 代替。</p>
+<h3>方式C：直接从 GitHub 下载校验后安装</h3>
+<p>先下载仓库根目录的 <a href="https://github.com/amberbrook0104/heymail-skill/blob/main/install-from-github.ps1">install-from-github.ps1</a>，在下载目录执行：</p>
+<pre><code class="language-powershell">powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-from-github.ps1 -Agent workbuddy
+# 原地更新时追加 -Replace
+</code></pre>
+<p>脚本获取 GitHub v1.4 Release 完整包，核对 GitHub 返回的 SHA-256 后调用安装器。安装成功后刷新技能列表或重新打开聊天。文件夹名和界面以当前客户端实际显示为准。</p>
+<h2>3. 开启 SMTP 并获取授权码</h2>
+<p>授权码是邮箱为第三方客户端生成的密码，SMTP 是发送邮件所用的服务。请先登录自己的<a href="https://mail.163.com/">163邮箱</a>或<a href="https://mail.qq.com/">QQ邮箱</a>。</p>
+<blockquote>
+<p>[!CAUTION]
+授权码只填写在 heymail 打开的本机隐藏输入窗口中。不要把邮箱登录密码、授权码、短信验证码发到聊天、截图或 GitHub。教程图片已经脱敏，不包含可用授权码。</p>
+</blockquote>
+<h3>163邮箱</h3>
+<p><img src="../heymail/assets/guides/163-smtp-guide.png" alt="163截图图解：设置、服务开通和授权码后续步骤"></p>
+<ol>
+<li>点击邮箱顶部的“设置”。</li>
+<li>选择“POP3/SMTP/IMAP”。</li>
+<li>开启包含 SMTP 的服务；图中 POP3/SMTP 已开启时不用重复开关。</li>
+<li>按网页提示完成本人安全验证，在授权管理处生成/新增客户端授权码。截图没有覆盖最后的生成页面，图中的末尾流程条仅为操作说明。</li>
+<li>把授权码填写到本机安全输入窗口。</li>
+</ol>
+<p>仅发送邮件可开启 POP3/SMTP 或 IMAP/SMTP 中的一项，heymail 不读取收件箱。页面变化时以<a href="https://help.mail.163.com/">163官方帮助</a>和实际安全验证提示为准。</p>
+<h3>QQ邮箱</h3>
+<p><img src="../heymail/assets/guides/qq-smtp-guide.png" alt="QQ截图图解：设置、安全设置、开启服务、生成授权码"></p>
+<ol>
+<li>点击右上角“设置”，进入“安全设置”。</li>
+<li>在 POP3/IMAP/SMTP 服务处点击“开启服务”。</li>
+<li>服务已开启时，点击“生成授权码”。</li>
+<li>如果按钮灰色且提示绑定手机号，先按页面提示绑定，再由本人完成验证。</li>
+<li>将生成的授权码填写到本机安全输入窗口。</li>
+</ol>
+<p>图中的“关闭服务”用于停用服务，不是本流程的操作目标。<a href="https://help.mail.qq.com/detail/106/985">QQ官方授权码帮助</a>。</p>
+<h2>4. 首次配置：逐步提供资料</h2>
+<table>
+<thead>
+<tr>
+<th>顺序</th>
+<th>你做什么</th>
+<th>完成标志</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>① 保存授权码</td>
+<td>在本机输入框或独立终端隐藏输入，不发到聊天</td>
+<td>Agent 确认安全保存成功</td>
+</tr>
+<tr>
+<td>② 提供简历</td>
+<td>上传 PDF/DOCX，或给出本机路径</td>
+<td>简历副本与原件字节一致</td>
+</tr>
+<tr>
+<td>③ 提供发件邮箱</td>
+<td>给出与授权码匹配的完整163/QQ地址</td>
+<td>SMTP登录验证成功；没有发送测试邮件</td>
+</tr>
+<tr>
+<td>④ 配置台账</td>
+<td>选择保存目录；多客户端沿用同一目录</td>
+<td>生成9列表格及桌面快捷方式</td>
+</tr>
+</tbody></table>
+<p>WorkBuddy 自带 Python 没有 Tkinter 时会打开独立终端隐藏输入。没看到窗口时，可完整解压后双击 <code>start-setup-console.cmd</code>；不要在 Agent 的工具输出区域粘贴授权码。</p>
+<p>台账可使用 Node + Artifact Tool，或 Python + openpyxl/Pillow。后者不依赖 Codex；依赖缺少时由 Agent 说明并协助配置，不应虚称已启用台账。详细配置见<a href="../heymail/references/usage.md">执行说明</a>。</p>
+<h2>5. 日常投递：从 JD 到台账</h2>
+<p><img src="../heymail/assets/guides/jd-demo.svg" alt="演示对话：提交JD、核对预览、确认发送和查看台账"></p>
+<h3>第一步：把JD发给Agent</h3>
+<p>可上传招聘截图、粘贴招聘文字，或提供本机文件路径。加一句：</p>
+<blockquote>
+<p>[!TIP]
+使用 heymail 准备这份 JD 的申请。沿用已配置简历，正文只使用真实经历，展示完整预览后等我回复“发送”。</p>
+</blockquote>
+<p>截图模糊或地点、到岗时间等与已知安排冲突时，Agent 只补问缺失项。无需每次重新配置邮箱。</p>
+<h3>第二步：检查预览</h3>
+<p>以下仅为演示，不是真实招聘信息。示例地址不能用于实际投递。</p>
+<blockquote>
+<p><strong>收件人：</strong> <a href="mailto:hr@example.com">hr@example.com</a><br><strong>主题：</strong> 应聘研究实习生-示例同学-示例大学<br><strong>正文：</strong> 您好，我是示例大学在读学生，有行业资料整理和数据分析实践，希望申请研究实习生岗位。简历随信附上，烦请您审阅。<br><strong>附件：</strong> 应聘研究实习生-示例同学-示例大学.pdf</p>
+</blockquote>
+<p>检查收件人、邮件标题、正文和全部附件。附件仅改副本文件名，原 PDF/DOCX 内容不修改。主题和附件优先按 JD 要求命名，并剔除招聘来源平台标签。</p>
+<h3>第三步：单独回复“发送”</h3>
+<p>核对无误后，在下一条消息中只输入：</p>
+<pre><code class="language-text">发送
+</code></pre>
+<p>修改正文、收件人或附件后，应先核对新版预览，再回复新的“发送”。“准备发送”“不要发送”或JD截图中的“发送”均不是确认。</p>
+<h3>第四步：查看结果和台账</h3>
+<p>Agent 返回本地回执，并在桌面“实习投递台账”中登记：公司、岗位、地点、投递时间、实际Agent、收件邮箱、当前进展、最新进展、备注。你可以填写“HR已回复”“已完成一面”等最新进展，刷新后保留。</p>
+<blockquote>
+<p>[!NOTE]
+“SMTP已接受”只表示邮箱服务器接受提交，不代表对方已收到或已读。Excel正在打开导致刷新失败时，先保留回执，关闭Excel后再刷新，不能因此重新发邮件。</p>
+</blockquote>
+<h2>6. 常见情况</h2>
+<ul>
+<li>已安装但看不到技能：刷新技能列表或重新打开聊天，核对是否选中了正确工作目录。</li>
+<li>新电脑：首次配置自己的邮箱与简历，不复制他人的配置、凭据或个人台账。</li>
+<li>多客户端：技能可分别安装；共享同一台账时始终记录实际Agent，不并发刷新或覆盖同一个打开的Excel。</li>
+<li>授权码失效：在官方网页重新生成，通过本机安全输入流程更新，不发到聊天。</li>
+<li>源码与品牌素材在GitHub公开；私人简历、回执、配置、原始截图和真实台账不会进入发布包。</li>
+</ul>
+</main><script>for(const box of document.querySelectorAll('blockquote')){if(box.innerText.includes('[!TIP]')){const b=document.createElement('button');b.textContent='复制提示词';b.onclick=async()=>{const value=box.innerText.replace('复制提示词','').replace('[!TIP]','').trim();try{await navigator.clipboard.writeText(value);b.textContent='已复制'}catch{const t=document.createElement('textarea');t.value=value;document.body.append(t);t.select();document.execCommand('copy');t.remove();b.textContent='已复制'}};box.prepend(b)}}</script></html>

@@ -21,6 +21,12 @@ FAKE_CODE = "synthetic-not-a-real-authorization-code"
 
 
 class OnboardingTests(unittest.TestCase):
+    def test_launch_without_tkinter_chooses_hidden_console_input(self):
+        import sys
+        with patch.dict(sys.modules, {'tkinter':None}), patch.object(sys,'argv',['credential_input.py','--launch']), patch.object(ui,'launch_input',return_value=0) as launch:
+            self.assertEqual(ui.main(),0)
+            self.assertTrue(launch.call_args.args[0].console)
+
     def setUp(self):
         base = ROOT / "work/test-temp"
         base.mkdir(parents=True, exist_ok=True)

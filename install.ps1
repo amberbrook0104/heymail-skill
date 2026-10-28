@@ -1,5 +1,5 @@
 ﻿param(
-    [ValidateSet('codex','claude','doubao')][string]$Agent = 'codex',
+    [ValidateSet('codex','claude','doubao','workbuddy')][string]$Agent = 'codex',
     [string]$Destination = '',
     [string]$BackupDirectory = '',
     [switch]$Replace
@@ -27,6 +27,8 @@ if (-not $Destination) {
         $Destination = if ($heymailExisting.Count -eq 1) { $heymailExisting[0] } else { $heymailCandidates[0] }
     } elseif ($Agent -eq 'claude') {
         $Destination = Join-Path $heymailProfile '.claude\skills\heymail'
+    } elseif ($Agent -eq 'workbuddy') {
+        $Destination = Join-Path $heymailProfile '.workbuddy\skills\heymail'
     } else {
         $Destination = Join-Path $heymailProfile 'AppData\Local\Doubao\User Data\Default\.doubao\agent_mode\workspace\.user_skills\heymail'
     }
@@ -53,6 +55,14 @@ Get-ChildItem -LiteralPath $heymailSource -Recurse -File | Where-Object {
         throw '复制校验失败。'
     }
 }
+if ($Agent -eq 'workbuddy') {
+    $heymailEntry = Join-Path $Destination 'SKILL.md'
+    $heymailSourceText = [IO.File]::ReadAllText($heymailEntry)
+    $heymailVersion = [regex]::Match($heymailSourceText,'version: "([^"]+)"').Groups[1].Value
+    $heymailFields = "name: heymail`ndisplay_name: heymail 实习投递与台账`ndisplay_name_en: HeyMail Applications and Ledger`ndescription_zh: 简历投递、预览确认与共享台账`ndescription_en: Prepare and confirm application emails with a shared local ledger`nversion: " + $heymailVersion + "`nauthor: amberbrook0104"
+    $heymailSourceText = $heymailSourceText.Replace('name: heymail',$heymailFields)
+    [IO.File]::WriteAllText($heymailEntry,$heymailSourceText,[Text.UTF8Encoding]::new($false))
+}
 Write-Output ('已安装：' + $Destination)
-Write-Output '刷新技能列表或重新打开聊天。首次安装见 docs/first-install.md，已有用户更新见 docs/update.md。'
+Write-Output '刷新技能列表或重新打开聊天。统一教程见 docs/install.md（先更新，后首次安装）。'
 
