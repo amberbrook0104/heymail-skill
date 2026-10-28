@@ -65,3 +65,10 @@
 ## 独立调用同一个Excel
 
 每个Agent均可独立安装和调用本技能。不要求安装其他Agent、共享账户、读取其他Agent的配置或寻找其依赖。使用当前客户端或系统可用的Python 3.10+运行 `scripts/tracker.py init/sync/add/list --workbook "Excel绝对路径"`。add需传入record JSON及真实 --agent；无需邮箱配置或凭据，不发送邮件。现有Excel即使没有旁边的历史事件文件，也会保留全部已有行；同步信息仅用于辅助合并。每个台账使用单独目录，所有客户端指向同一文件，依次写入。
+
+```powershell
+python -X utf8 "<skill-dir>/scripts/tracker.py" add --workbook "Excel绝对路径.xlsx" --record "record.json" --agent WorkBuddy --author "已知的文件作者"
+python -X utf8 "<skill-dir>/scripts/tracker.py" sync --workbook "Excel绝对路径.xlsx"
+```
+
+record.json字段为字符串：company和position必填；可选location、time（ISO本地北京时间）、recipients（多邮箱换行）、progress、latest_progress、notes。可指定以manual_开头的稳定id，重复id会拒绝新增，避免重试造成重复行。省略时间时使用当前北京时间，省略状态时为“待确认”，不将手工登记冒充SMTP已接受。每次新增前确认用户指定的Excel路径和文件夹读写权限。init只初始化或同步，不覆盖空白模板；已有台账始终保留。

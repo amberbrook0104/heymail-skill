@@ -9,6 +9,8 @@ metadata:
 
 目标交互：首次完成邮箱与简历配置；以后上传JD、核对预览并输入“发送”，投递后自动登记到共享台账。邮件投递和台账维护均属于本技能。
 
+先区分请求：如果用户只要新增、查看或刷新Excel，直接读取 `references/tracker.md`，用当前客户端或系统Python运行 `scripts/tracker.py` 并指定Excel绝对路径。此模式不执行邮箱onboarding/check、不读取凭据，也不寻找任何其他Agent的配置或运行环境。只有准备或发送邮件时，才执行下面的邮箱配置流程。
+
 ## 安装和入门图解
 
 用户安装、更新或询问完整操作流程时，读取[统一图文教程](https://github.com/amberbrook0104/heymail-skill)。WorkBuddy使用本机Python；无Tkinter时`credential_input.py --launch`自动打开独立终端隐藏输入。投递使用`--agent WorkBuddy`。台账只需Python标准库和Excel路径，无需Node、Artifact Tool、openpyxl、Pillow或其他Agent。自动登记只需配置tracker.root；直接操作Excel可使用scripts/tracker.py，无需邮箱配置。
