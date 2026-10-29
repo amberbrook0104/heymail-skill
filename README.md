@@ -1,12 +1,15 @@
 # heymail 安装、更新与投递全流程
 
-Windows 10/11 · Codex / 豆包 / WorkBuddy / Claude Code · v1.4.1
+Windows 10/11 · Codex / 豆包 / WorkBuddy / Claude Code · v1.4.2
 
 
 每个Agent都能单独使用：任选Codex、豆包、WorkBuddy或Claude Code，只需本机Python 3.10+和Excel文件路径。无需搭配其他Agent，也不需要额外Excel库。
 
 更新、首次安装、授权码和JD投递都在本页，直接向下阅读。
 
+
+> [!TIP]
+> **日常投递使用快速模式**：只读当前JD、配置指定简历和当前邮件预览。准备一次、确认后发送一次，写入Excel后结束。不搜索历史聊天、草稿、回执、项目或JD归档；不重复检查邮箱，不自动回放历史数据。工作地点只写城市。
 
 ## 1. 已有用户：原地更新
 
@@ -16,9 +19,9 @@ Windows 10/11 · Codex / 豆包 / WorkBuddy / Claude Code · v1.4.1
 把下面整个提示框复制到正在使用的 Agent：
 
 > [!TIP]
-> 请从 https://github.com/amberbrook0104/heymail-skill 获取 v1.4.1 完整技能包，原地更新本客户端的 heymail。先查找实际旧安装目录并备份，避免装出第二份。保留邮箱、Windows 凭据、简历、历史回执、台账目录及人工字段，不重新索取授权码，也不发送测试邮件。更新后按新 SKILL.md 使用当前客户端的Python标准库写入器，刷新原台账并核对桌面入口。投递 Agent 记录实际客户端名称。只处理本机资料，最后报告安装目录、版本和验证结果。其他客户端只在我明确要求时同步。
+> 请从 https://github.com/amberbrook0104/heymail-skill 获取 v1.4.2 完整技能包，原地更新本客户端的 heymail。先查找实际旧安装目录并备份，避免装出第二份。保留邮箱、Windows 凭据、简历、历史回执、台账目录及人工字段，不重新索取授权码，也不发送测试邮件。更新后按新 SKILL.md 检查当前客户端的Python和原Excel路径，不扫描历史或自动重建台账并核对桌面入口。投递 Agent 记录实际客户端名称。只处理本机资料，最后报告安装目录、版本和验证结果。其他客户端只在我明确要求时同步。
 
-希望手动执行时，从[完整安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4.1/heymail-v1.4.1.zip)解压，在包目录中选择一条：
+希望手动执行时，从[完整安装包](https://github.com/amberbrook0104/heymail-skill/releases/download/v1.4.2/heymail-v1.4.2.zip)解压，在包目录中选择一条：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Agent codex -Replace
@@ -34,7 +37,7 @@ Codex 同时发现新旧两个目录时会停止，需加 `-Destination "实际�
 ## 2. 首次安装：从 GitHub 获取完整包
 
 > [!TIP]
-> 请安装 https://github.com/amberbrook0104/heymail-skill 的 v1.4.1 完整版 heymail，先检查本客户端是否已有安装或配置，避免重复安装。按实际客户端选择路径，完整保留 scripts、references、assets。读取 SKILL.md，先引导我在官方邮箱网页开启 SMTP 并生成授权码，再打开本机安全输入窗口；保存成功后只请我提供 PDF/DOCX 简历，最后再请我提供发件邮箱。只检查 SMTP 登录，不发测试邮件。配置台账时优先沿用已有共享目录，缺少时询问我保存位置。完成后报告安装目录和可用功能，再接着处理我的 JD。
+> 请安装 https://github.com/amberbrook0104/heymail-skill 的 v1.4.2 完整版 heymail，先检查本客户端是否已有安装或配置，避免重复安装。按实际客户端选择路径，完整保留 scripts、references、assets。读取 SKILL.md，先引导我在官方邮箱网页开启 SMTP 并生成授权码，再打开本机安全输入窗口；保存成功后只请我提供 PDF/DOCX 简历，最后再请我提供发件邮箱。只检查 SMTP 登录，不发测试邮件。配置台账时优先沿用已有共享目录，缺少时询问我保存位置。完成后报告安装目录和可用功能，再接着处理我的 JD。
 
 ### 方式A：让 Agent 按上面的提示安装
 
@@ -42,8 +45,8 @@ Codex 同时发现新旧两个目录时会停止，需加 `-Destination "实际�
 
 ### 方式B：下载并运行安装器
 
-1. 打开 [GitHub v1.4.1 发布页](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.4.1)。
-2. 下载 `heymail-v1.4.1.zip` 并完整解压。
+1. 打开 [GitHub v1.4.2 发布页](https://github.com/amberbrook0104/heymail-skill/releases/tag/v1.4.2)。
+2. 下载 `heymail-v1.4.2.zip` 并完整解压。
 3. 在含 `install.ps1` 的文件夹打开 PowerShell，选择对应客户端执行：
 
 ```powershell
@@ -69,7 +72,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-from-github.ps
 # 原地更新时追加 -Replace
 ```
 
-脚本获取 GitHub v1.4.1 Release 完整包，核对 GitHub 返回的 SHA-256 后调用安装器。安装成功后刷新技能列表或重新打开聊天。文件夹名和界面以当前客户端实际显示为准。
+脚本获取 GitHub v1.4.2 Release 完整包，核对 GitHub 返回的 SHA-256 后调用安装器。安装成功后刷新技能列表或重新打开聊天。文件夹名和界面以当前客户端实际显示为准。
 
 ## 3. 开启 SMTP 并获取授权码
 
@@ -128,7 +131,7 @@ WorkBuddy 自带 Python 没有 Tkinter 时会打开独立终端隐藏输入。�
 > [!TIP]
 > 使用 heymail 准备这份 JD 的申请。沿用已配置简历，正文只使用真实经历，展示完整预览后等我回复“发送”。
 
-截图模糊或地点、到岗时间等与已知安排冲突时，Agent 只补问缺失项。无需每次重新配置邮箱。
+截图模糊或城市、到岗时间等与已知安排冲突时，Agent 只补问缺失项。无需每次重新配置邮箱。
 
 ### 第二步：检查预览
 
@@ -153,7 +156,7 @@ WorkBuddy 自带 Python 没有 Tkinter 时会打开独立终端隐藏输入。�
 
 ### 第四步：查看结果和台账
 
-Agent 返回本地回执，并在桌面“实习投递台账”中登记：公司、岗位、地点、投递时间、实际Agent、收件邮箱、当前进展、最新进展、备注。你可以填写“HR已回复”“已完成一面”等最新进展，刷新后保留。
+Agent 返回本地回执，并在桌面“实习投递台账”中登记：公司、岗位、城市、投递时间、实际Agent、收件邮箱、当前进展、最新进展、备注。你可以填写“HR已回复”“已完成一面”等最新进展，刷新后保留。
 
 > [!NOTE]
 > “SMTP已接受”只表示邮箱服务器接受提交，不代表对方已收到或已读。Excel正在打开导致刷新失败时，先保留回执，关闭Excel后再刷新，不能因此重新发邮件。

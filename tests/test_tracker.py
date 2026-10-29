@@ -85,11 +85,39 @@ class TrackerTests(unittest.TestCase):
             self.assertEqual(cells['K'],'hr@example.com' if '收件邮箱' in headers else None)
 
     def test_spreadsheet_failure_keeps_submission_event(self):
-        with patch.object(tracker,'sync',side_effect=PermissionError()):
+        with patch.object(tracker,'append_event',side_effect=PermissionError()):
             result=tracker.record_submission({'tracker':self.settings,'display_name':'示例发件人'},self.manifest,self.receipt,self.root/'receipt.json',ROOT/'mail.py')
         self.assertFalse(result['ok'])
         self.assertTrue(result['recorded'])
         self.assertEqual(len(list((self.root/'.events').glob('*.json'))),1)
+
+    def test_delivery_fast_path_does_not_read_history_or_archive_jd(self):
+        (self.root/'.events').mkdir()
+        (self.root/'.events'/'old-invalid.json').write_text('invalid historical data',encoding='utf-8')
+        (self.root/'.state.json').write_text('invalid old state',encoding='utf-8')
+        actual_read=tracker.read_json
+        def current_only(path,default=None):
+            path=Path(path)
+            if path.name=='.state.json' or path.parent.name=='.events':raise AssertionError('History was read')
+            return actual_read(path,default)
+        with patch.object(tracker,'read_json',side_effect=current_only):
+            first=tracker.record_submission({'tracker':self.settings,'display_name':'Synthetic'},
+                {**self.manifest,'application':{**self.manifest['application'],'location':'北京市西城区阜成门北大街2号'}},self.receipt,self.root/'receipt.json',ROOT/'mail.py')
+        self.assertTrue(first['ok'])
+        self.assertEqual(first['mode'],'current_receipt_only')
+        self.assertFalse((self.root/'JD来源').exists())
+        cells=tracker.read_workbook_rows(self.root/'实习投递台账.xlsx')['test-job']
+        self.assertEqual(cells['C'],'北京')
+        second={**self.receipt,'to':'second@example.com','message_id':'<second@example.com>','time':'2026-10-28T02:00:00Z'}
+        with patch.object(tracker,'read_json',side_effect=current_only):
+            output=tracker.record_submission({'tracker':self.settings,'display_name':'Synthetic'},self.manifest,second,self.root/'second.json',ROOT/'mail.py')
+        self.assertTrue(output['ok']);self.assertEqual(output['rows'],1)
+        cells=tracker.read_workbook_rows(self.root/'实习投递台账.xlsx')['test-job']
+        self.assertEqual(cells['K'],'hr@example.com\nsecond@example.com')
+
+    def test_city_only_location(self):
+        for original,city in [('北京市西城区阜成门北大街2号','北京'),('上海浦东新区某大厦','上海'),('广东省深圳市南山区某路8号','深圳'),('浙江省绍兴市某街道','绍兴'),('远程','远程'),('某街道12号','待确认')]:
+            self.assertEqual(tracker.normalize_city(original),city)
 
     def test_missing_metadata_does_not_invent_company(self):
         event=tracker.record_event(self.settings,{'to':'x@example.com','subject':'unknown'},self.receipt,self.root/'receipt.json')

@@ -61,7 +61,7 @@ python -X utf8 "<skill-dir>/scripts/mail.py" prepare --draft "work/mail-draft.js
 
 导出以随技能提供的空白模板为基础，使用Python标准库修改XLSX中的XML并保留其他文件部件，包括品牌图片、状态下拉、冻结行、隐藏编号和最新进展文字栏。无需安装任何第三方包。
 
-`tracker-sync` 只刷新台账，不发送邮件、不读取凭据。Excel打开导致无法覆盖时，投递事件仍保留，关闭Excel后再运行该命令。Excel仅显示公司、岗位、工作地点、投递时间、投递 Agent、收件邮箱、当前进展、最新进展和备注9列，并按投递时间倒序排列。手工修改的公司、岗位、地点、进展、最新进展和备注会保留，隐藏技术编号列请勿删除。JD材料保留在后台归档，不再显示来源列。
+发送后的登记只读取当前回执和现有Excel，不扫描历史事件、状态、回执或JD归档。`tracker-sync`仅整理现有Excel，不读取历史，也不会自动补回旧事件。登记失败时，先报告并等待用户；关闭Excel后，按本次任务执行 `mail.py tracker-apply --state-dir "本次状态目录"` 一次，仅登记当前回执，不发送邮件。只有用户明确要求回填历史时才运行 `tracker-rebuild`。
 
 桌面入口使用 `python -X utf8 "<skill-dir>/scripts/mail.py" tracker-shortcut`。它要求台账文件已存在，指向实时原文件，不修改Excel或发送邮件。可用 `--desktop "自定义桌面目录"` 覆盖默认桌面位置。
 

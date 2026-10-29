@@ -1,6 +1,6 @@
 ﻿param(
     [ValidateSet('codex','claude','doubao','workbuddy')][string]$Agent='codex',
-    [string]$Version='v1.4.1',
+    [string]$Version='v1.4.2',
     [string]$Destination='',
     [switch]$Replace
 )

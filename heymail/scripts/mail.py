@@ -502,6 +502,8 @@ def connect(config, secret):
 
 def close(client):
     try:
+        sock=getattr(client,'sock',None)
+        if sock is not None:sock.settimeout(5)
         client.quit()
     except Exception:
         # A QUIT failure does not negate an already accepted DATA transaction.
@@ -585,6 +587,9 @@ def main():
     status.add_argument("--state-dir", type=Path)
     commands.add_parser("check", help="Authenticate SMTP; do not send a message")
     commands.add_parser("tracker-sync", help="Refresh the shared local ledger; no mail sent")
+    commands.add_parser("tracker-rebuild", help="Explicit historical rebuild; reads old events only when requested")
+    apply_current=commands.add_parser('tracker-apply',help='Register only the current task receipt; never sends mail')
+    apply_current.add_argument('--state-dir',type=Path,required=True)
     shortcut = commands.add_parser("tracker-shortcut", help="Create/update a desktop shortcut to the live ledger; no mail sent")
     shortcut.add_argument("--desktop", type=Path, help="Optional desktop directory override")
     listing = commands.add_parser("tracker-list", help="Find shared ledger application IDs; no mail sent")
@@ -619,10 +624,19 @@ def main():
         emit(result)
     elif args.command == "prepare":
         emit(prepare(config, args))
-    elif args.command == "tracker-sync":
+    elif args.command == 'tracker-apply':
+        _,folder,manifest,_=read_pending(args.state_dir.resolve())
+        receipt=read_json(folder/'receipt.json')
+        if receipt.get('status') not in ('accepted','rejected','uncertain','submitting'):
+            raise MailError('no_current_submission_receipt')
+        tracking=track_delivery(config,manifest,receipt,folder/'receipt.json')
+        emit({'ok':bool(tracking and tracking.get('ok')),'tracker':tracking})
+    elif args.command in ("tracker-sync","tracker-rebuild"):
         if not config.get("tracker"):
             raise MailError("tracker_not_configured")
-        emit({"ok": True, **ledger_module().sync({**config["tracker"], "author": config["display_name"]})})
+        ledger=ledger_module()
+        method=ledger.sync if args.command=='tracker-rebuild' else ledger.append_event
+        emit({"ok": True, **method({**config["tracker"], "author": config["display_name"]})})
     elif args.command == "tracker-shortcut":
         if not config.get("tracker"):
             raise MailError("tracker_not_configured")

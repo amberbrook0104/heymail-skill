@@ -48,6 +48,26 @@ def agent_name(script_path):
     return "其他"
 
 
+def normalize_city(value):
+    value=str(value or '').strip()
+    value=re.sub(r'^(?:base|地点|工作地点|地址)\s*[:：]?\s*','',value,flags=re.I)
+    if not value or value=='待确认':return value
+    if value in ('远程','线上','居家','remote','Remote'):return '远程'
+    if re.fullmatch(r'(?:可|支持|完全)?(?:远程|线上|居家)(?:实习|办公|工作)?',value):return '远程'
+    parts=re.split(r'[/、,，;；|]',value)
+    if len(parts)>1:
+        cities=list(dict.fromkeys(normalize_city(part) for part in parts if part.strip()))
+        return '/'.join(city for city in cities if city) or '待确认'
+    common='北京 上海 天津 重庆 香港 澳门 深圳 广州 杭州 成都 南京 武汉 西安 苏州 宁波 合肥 郑州 长沙 青岛 济南 厦门 福州 无锡 佛山 东莞 珠海 大连 沈阳 长春 哈尔滨 昆明 贵阳 南宁 海口 石家庄 太原 兰州 银川 西宁 乌鲁木齐 呼和浩特 拉萨 南昌 温州 泉州 常州 南通 嘉兴 绍兴 扬州 烟台 洛阳 唐山 保定 惠州 中山'.split()
+    for city in common:
+        if value.startswith(city):return city
+    locality=re.sub(r'^.+?(?:省|自治区)','',value)
+    match=re.match(r'([\u4e00-\u9fff]{2,12}?)市',locality)
+    if match:return match.group(1)
+    if re.search(r'路|街|大道|栋|号|园区|大厦|区|县',value) or len(value)>20:return '待确认'
+    return value
+
+
 def normalize_application(data):
     if data is None:
         return {}
@@ -59,6 +79,7 @@ def normalize_application(data):
         if not isinstance(value, str) or len(value) > (60000 if key == "jd_text" else 2000):
             raise ValueError("invalid_application_value")
         result[key] = value.strip()
+    if 'location' in result:result['location']=normalize_city(result['location'])
     if result.get("id") and not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", result["id"]):
         raise ValueError("invalid_application_id")
     return result
@@ -111,7 +132,7 @@ def archive_source(root, identifier, application, manifest, author="User"):
     return {"label": label, "target": str(dest)}
 
 
-def record_event(settings, manifest, receipt, receipt_path, agent=None, application=None):
+def record_event(settings, manifest, receipt, receipt_path, agent=None, application=None, archive=True):
     root = Path(settings["root"]).resolve()
     root.mkdir(parents=True, exist_ok=True)
     application = normalize_application(application if application is not None else manifest.get("application", {}))
@@ -125,7 +146,7 @@ def record_event(settings, manifest, receipt, receipt_path, agent=None, applicat
              "recipient": receipt.get("to", manifest.get("to", "")),
              "message_id": receipt.get("message_id", ""),
              "receipt_path": str(Path(receipt_path).resolve()),
-             "source": archive_source(root, identifier, application, manifest, document_author(settings))}
+             "source": archive_source(root, identifier, application, manifest, document_author(settings)) if archive else None}
     atomic_json(root / ".events" / (event_id + ".json"), event)
     return event
 
@@ -229,7 +250,7 @@ def recipient_emails(events):
     for event in events:
         value = event.get("recipient")
         values = value if isinstance(value, list) else [value]
-        for _, address in getaddresses([v for v in values if isinstance(v, str) and v.strip()]):
+        for _, address in getaddresses([line for v in values if isinstance(v,str) for line in v.splitlines() if line.strip()]):
             address = address.strip()
             if "@" in address and address.casefold() not in seen:
                 seen.add(address.casefold())
@@ -411,14 +432,60 @@ def sync(settings, render=False, new_record=None):
         return {"workbook": str(workbook), "rows": len(rows), "events": len(events)}
 
 
+def write_excel_rows(settings, root, workbook, rows):
+    rows.sort(key=lambda row:time_sort_key(row.get('time')),reverse=True)
+    temporary=root/('.append-'+uuid.uuid4().hex+'.xlsx')
+    try:
+        from importlib.util import spec_from_file_location,module_from_spec
+        spec=spec_from_file_location('heymail_excel',Path(__file__).with_name('tracker_excel.py'))
+        exporter=module_from_spec(spec);spec.loader.exec_module(exporter)
+        exporter.export(rows,temporary,document_author(settings));os.replace(temporary,workbook)
+    finally:temporary.unlink(missing_ok=True)
+    return {'workbook':str(workbook),'rows':len(rows),'mode':'current_receipt_only'}
+
+
+def append_event(settings, event=None):
+    """Project the current receipt into Excel; never scan prior events or state."""
+    root=Path(settings['root']).resolve();root.mkdir(parents=True,exist_ok=True)
+    workbook=Path(settings.get('workbook') or root/'实习投递台账.xlsx').resolve()
+    if workbook.parent!=root or workbook.suffix.lower()!='.xlsx':raise ValueError('invalid_workbook_path')
+    with sync_lock(root):
+        rows=[]
+        for identifier,cells in read_workbook_rows(workbook).items():
+            rows.append({'id':identifier,'company':cells.get('A'),'position':cells.get('B'),
+                'location':normalize_city(cells.get('C')),'time':cells.get('D'),'agent':cells.get('E'),
+                'progress':cells.get('F'),'follow_up':cells.get('G'),'notes':cells.get('I'),
+                'recipients':cells.get('K') or ''})
+        if event is None:return write_excel_rows(settings,root,workbook,rows)
+        incoming=aggregate([event])[0];incoming['location']=normalize_city(incoming.get('location'))
+        if event.get('status')=='manual_entry':
+            incoming['progress']=event.get('progress') or '待确认'
+            incoming['follow_up']=event.get('latest_progress')
+        existing=next((row for row in rows if row['id']==incoming['id']),None)
+        if existing is not None and event.get('status')=='manual_entry':raise ValueError('record_id_already_exists')
+        if existing is None:rows.append(incoming)
+        else:
+            for key in ('company','position','location'):
+                if not existing.get(key) or existing[key]=='待确认':existing[key]=incoming[key]
+            existing['agent']='、'.join(sorted(set(filter(None,(existing.get('agent') or '').split('、')+[event['agent']]))))
+            existing['recipients']=recipient_emails([{'recipient':(existing.get('recipients') or '').splitlines()},event])
+            if not existing.get('progress') or existing['progress'] in ('投递失败','发送待核实'):
+                existing['progress']=incoming['progress']
+            if time_sort_key(existing.get('time'))[:19]!=time_sort_key(event['time'])[:19]:
+                addition='追加投递：'+event['time'].replace('T',' ')[:16]+'（'+event['agent']+'）'
+                old=existing.get('notes') or ''
+                if isinstance(old,str) and addition not in old:existing['notes']=old+('；' if old else '')+addition
+        return write_excel_rows(settings,root,workbook,rows)
+
+
 def record_submission(config, manifest, receipt, receipt_path, script_path):
     settings = config.get("tracker")
     if not settings:
         return None
     settings = {**settings, "author": config["display_name"]}
-    record_event(settings, manifest, receipt, receipt_path, agent=manifest.get("agent") or agent_name(script_path))
+    event=record_event(settings, manifest, receipt, receipt_path, agent=manifest.get("agent") or agent_name(script_path),archive=False)
     try:
-        return {"ok": True, **sync(settings)}
+        return {"ok": True, **append_event(settings,event)}
     except Exception as error:
         return {"ok": False, "recorded": True, "refresh_pending": True,
                 "error_type": type(error).__name__, "note": "邮件记录已保存，Excel待刷新；不要重发邮件"}
@@ -443,7 +510,7 @@ def create_desktop_shortcut(settings, desktop=None):
 def main():
     import argparse
     parser=argparse.ArgumentParser(description='Independent Excel ledger: no mailbox, credentials, Node or third-party packages.')
-    parser.add_argument('command',choices=['init','sync','add','list','shortcut'])
+    parser.add_argument('command',choices=['init','sync','add','list','shortcut','rebuild'])
     parser.add_argument('--workbook',type=Path,required=True)
     parser.add_argument('--record',type=Path)
     parser.add_argument('--agent',default='其他')
@@ -454,8 +521,19 @@ def main():
         if args.record is None:parser.error('add requires --record')
         record=read_json(args.record)
         if not isinstance(record,dict):raise ValueError('record_must_be_object')
-        result=sync(settings,new_record={**record,'agent':args.agent})
-    elif args.command in ('sync','init'):result=sync(settings)
+        allowed={'id','company','position','location','time','agent','recipients','progress','latest_progress','notes'}
+        if set(record)-allowed or any(not isinstance(v,str) or len(v)>2000 for v in record.values()):raise ValueError('invalid_ledger_record_fields')
+        if not record.get('company') or not record.get('position'):raise ValueError('company_and_position_required')
+        identifier=record.get('id') or 'manual_'+uuid.uuid4().hex
+        if not re.fullmatch(r'manual_[A-Za-z0-9_-]{1,100}',identifier):raise ValueError('standalone_record_id_must_start_with_manual_')
+        timestamp=record.get('time') or datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None).isoformat(timespec='seconds')
+        if not time_sort_key(timestamp):raise ValueError('invalid_record_time')
+        event={'application_id':identifier,'application':{k:record.get(k,'') for k in ('company','position','location','notes')},
+            'time':timestamp,'status':'manual_entry','agent':args.agent,'recipient':record.get('recipients',''),
+            'progress':record.get('progress'),'latest_progress':record.get('latest_progress')}
+        result=append_event(settings,event)
+    elif args.command in ('sync','init'):result=append_event(settings)
+    elif args.command=='rebuild':result=sync(settings)
     elif args.command=='shortcut':result=create_desktop_shortcut(settings)
     else:result={'rows':read_workbook_rows(book)}
     print(json.dumps({'ok':True,**result},ensure_ascii=False))
